@@ -13,7 +13,7 @@ export function PatientDetailPanel({ patient, onClose }) {
     <div
       role="dialog"
       aria-label={`Detail pasien ${patient.code}`}
-      className="pointer-events-none absolute inset-x-4 top-4 z-30 flex max-h-[calc(100%-32px)] flex-col lg:inset-x-auto lg:left-[392px] lg:top-4 lg:w-[340px]"
+      className="pointer-events-none absolute inset-x-4 top-4 z-30 flex max-h-[calc(100%-84px)] flex-col lg:inset-x-auto lg:left-[392px] lg:top-[68px] lg:w-[336px]"
     >
       <Card
         glass

@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { Card, Button, Tabs, StatusBadge } from '../../design/index.js';
 import { ACADEMIC_STRUCTURES } from './academicMetadata.js';
+import { HeapTreeVisualizer } from './HeapTreeVisualizer.jsx';
+import { GraphMiniMap } from './GraphMiniMap.jsx';
 
 const MAIN_TABS = [
   { id: 'ds', label: 'Struktur data' },
@@ -492,26 +494,17 @@ export function ModeAkademikPage({ token, hospitals }) {
                       ))}
                     </div>
 
+                    <HeapTreeVisualizer
+                      items={pqItems}
+                      title="Visualisasi Pohon Binary Min-Heap (contoh uji)"
+                    />
+
                     {liveData?.sampleHospital && (
-                      <Card variant="inner">
-                        <div className="type-caption mb-1.5">
+                      <Card variant="inner" className="space-y-2.5">
+                        <div className="type-caption">
                           Langsung dari simulasi — Binary Min-Heap IGD {liveData.sampleHospital.name}:
                         </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {liveData.sampleHospital.igdHeap.length > 0 ? (
-                            liveData.sampleHospital.igdHeap.map((item, i) => (
-                              <span
-                                key={`${item.code}_${i}`}
-                                className="tabular-nums rounded-lg bg-white px-2.5 py-1 text-[12px] font-medium"
-                                style={{ border: '1px solid var(--border)' }}
-                              >
-                                [{i}] {item.code} ({item.triage})
-                              </span>
-                            ))
-                          ) : (
-                            <span className="type-caption">Antrean IGD sedang kosong.</span>
-                          )}
-                        </div>
+                        <HeapTreeVisualizer items={liveData.sampleHospital.igdHeap} />
                       </Card>
                     )}
                   </div>
@@ -676,6 +669,14 @@ export function ModeAkademikPage({ token, hospitals }) {
                         Cari rute tercepat dan semua rute
                       </Button>
                     </div>
+
+                    <GraphMiniMap
+                      bridges={liveData?.bridges || []}
+                      dijkstraPath={graphResult?.dijkstra?.path || []}
+                      bfsPath={graphResult?.bfs?.path || []}
+                      fromId={graphFrom}
+                      toId={graphTo}
+                    />
 
                     {graphResult && (
                       <div className="space-y-2.5">

@@ -256,6 +256,16 @@ export function PetaLeftCard({
                         {selectedHospital.igdBusy} dari {selectedHospital.igdDoctors}
                       </span>
                     </div>
+
+                    <div className="flex items-center justify-between text-[13px]">
+                      <span className="flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
+                        <Clock size={16} strokeWidth={1.75} />
+                        Antrean poli
+                      </span>
+                      <span className="tabular-nums font-semibold" style={{ color: 'var(--text)' }}>
+                        {selectedHospital.poliQueue ?? 0} pasien ({selectedHospital.poliDoctors} dokter)
+                      </span>
+                    </div>
                   </Card>
 
                   {/* Tombol sesuai peran */}

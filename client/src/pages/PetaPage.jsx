@@ -189,6 +189,8 @@ export function PetaPage({ user, searchQuery, sim, onNavigate }) {
         onToggleAutoReferral={setAutoReferral}
         hospitals={world.hospitals}
         activeOutbreaks={world.activeOutbreaks || []}
+        activeReferrals={world.activeReferrals || []}
+        onSelectPatient={requestPatientDetail}
         undoInfo={world.undoInfo}
         onTriggerOutbreak={(cityId) => triggerScenario('wabah', { cityId })}
         onTriggerMassCasualty={(hospitalId) => triggerScenario('kecelakaan', { hospitalId })}

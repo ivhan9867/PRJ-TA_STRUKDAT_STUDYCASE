@@ -104,6 +104,11 @@ export function useAuth() {
     saveSession(null, null);
   }, [saveSession]);
 
+  const updateCurrentUser = useCallback((nextUser) => {
+    if (!nextUser) return;
+    setUser(nextUser);
+  }, []);
+
   return {
     user,
     token,
@@ -113,5 +118,6 @@ export function useAuth() {
     login,
     register,
     logout,
+    updateCurrentUser,
   };
 }

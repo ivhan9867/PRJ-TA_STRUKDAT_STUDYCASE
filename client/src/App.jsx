@@ -34,7 +34,9 @@ const PAGE_PLACEHOLDER = {
 
 export default function App() {
   const auth = useAuth();
-  const sim = useSimulationStore(auth.token);
+  const sim = useSimulationStore(auth.token, {
+    onProfileUpdated: auth.updateCurrentUser,
+  });
   const [activePage, setActivePage] = useState('peta');
   const [searchQuery, setSearchQuery] = useState('');
 

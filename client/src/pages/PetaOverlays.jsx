@@ -8,6 +8,7 @@ import {
   Siren,
   Undo2,
   RotateCcw,
+  Ambulance,
 } from 'lucide-react';
 import { StatChip, TimeControl, Button } from '../design/index.js';
 
@@ -29,6 +30,8 @@ export function PetaOverlays({
   onToggleAutoReferral,
   hospitals = [],
   activeOutbreaks = [],
+  activeReferrals = [],
+  onSelectPatient,
   undoInfo = { canUndo: false, nextDescription: null, size: 0 },
   onTriggerOutbreak,
   onTriggerMassCasualty,
@@ -465,8 +468,8 @@ export function PetaOverlays({
         </button>
       </div>
 
-      {/* 4. Kontrol waktu (tengah bawah) */}
-      <div className="absolute bottom-4 left-1/2 z-20 hidden -translate-x-1/2 lg:block">
+      {/* 4. Kontrol waktu (tengah bawah, tampil mulai md agar tablet juga melihat jam) */}
+      <div className="absolute bottom-4 left-1/2 z-20 hidden -translate-x-1/2 md:block">
         <TimeControl
           paused={paused}
           speed={speed}
@@ -477,6 +480,52 @@ export function PetaOverlays({
           onChangeSpeed={onChangeSpeed}
         />
       </div>
+
+      {/* 4b. Kartu mini Rujukan berjalan (muncul saat ada ambulans mengantar pasien) */}
+      {activeReferrals.length > 0 && (
+        <div
+          style={{
+            borderRadius: 'var(--radius-inner)',
+            boxShadow: 'var(--shadow-chip)',
+            border: '1px solid rgba(226, 232, 240, 0.9)',
+          }}
+          className="surface-glass absolute bottom-[152px] right-4 z-20 hidden w-[260px] p-3 lg:block"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: 'var(--accent)' }}>
+              <Ambulance size={14} strokeWidth={1.85} />
+              Rujukan berjalan ({activeReferrals.length})
+            </span>
+            <span className="type-caption">Klik pasien</span>
+          </div>
+          <div className="space-y-1.5">
+            {activeReferrals.slice(0, 3).map((refItem) => (
+              <button
+                key={refItem.id}
+                type="button"
+                onClick={() => onSelectPatient?.(refItem.patientCode)}
+                style={{
+                  backgroundColor: 'var(--surface-2)',
+                  borderRadius: '10px',
+                }}
+                className="focus-ring block w-full cursor-pointer px-2.5 py-1.5 text-left hover:bg-[var(--accent-soft)]/50"
+              >
+                <div className="flex items-center justify-between text-[12px]">
+                  <span className="tabular-nums font-semibold" style={{ color: 'var(--text)' }}>
+                    {refItem.patientCode}
+                  </span>
+                  <span className="tabular-nums font-semibold" style={{ color: 'var(--accent)' }}>
+                    ±{refItem.remainMin} mnt
+                  </span>
+                </div>
+                <div className="type-caption truncate">
+                  {refItem.fromName.replace('RS ', '')} ke {refItem.toName.replace('RS ', '')}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 5. Kontrol Zoom: +, -, Lihat semua (kanan bawah) */}
       <div className="absolute bottom-4 right-4 z-20 hidden flex-col items-end gap-2 lg:flex">

@@ -37,6 +37,7 @@ function createFallbackWorld() {
     paused: false,
     policy: { autoReferral: true },
     activeOutbreaks: [],
+    activeReferrals: [],
     undoInfo: { canUndo: false, nextDescription: null, size: 0 },
     kpi: {
       totalIgdQueue: 0,
@@ -53,7 +54,7 @@ function createFallbackWorld() {
  * Entitas animasi (pasien berjalan & ambulans) disimpan di Ref (bukan React state)
  * agar loop Canvas 60 fps berjalan tanpa memicu render ulang React tiap frame.
  */
-export function useSimulationStore(token) {
+export function useSimulationStore(token, { onProfileUpdated } = {}) {
   const [connected, setConnected] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [world, setWorld] = useState(() => createFallbackWorld());
@@ -61,6 +62,8 @@ export function useSimulationStore(token) {
   const [selectedPatientDetail, setSelectedPatientDetail] = useState(null);
   const [myQueue, setMyQueue] = useState(null);
   const [toasts, setToasts] = useState([]);
+  const onProfileUpdatedRef = useRef(onProfileUpdated);
+  onProfileUpdatedRef.current = onProfileUpdated;
 
   const socketRef = useRef(null);
   const walkinsRef = useRef(new Map());
@@ -140,6 +143,7 @@ export function useSimulationStore(token) {
           paused: tick.paused,
           policy: tick.policy,
           activeOutbreaks: tick.activeOutbreaks || [],
+          activeReferrals: tick.activeReferrals || [],
           undoInfo: tick.undoInfo || prev.undoInfo,
           hospitals: tick.hospitals,
           bridges: tick.bridges,
@@ -203,6 +207,15 @@ export function useSimulationStore(token) {
 
     socket.on('queue:me', (ticket) => {
       setMyQueue(ticket || null);
+    });
+
+    socket.on('profile:updated', (nextUser) => {
+      onProfileUpdatedRef.current?.(nextUser);
+      pushToast({
+        id: `prof_${Date.now()}`,
+        severity: 'info',
+        message: 'Peran akun Anda baru saja diperbarui oleh Dinkes.',
+      });
     });
 
     return () => {

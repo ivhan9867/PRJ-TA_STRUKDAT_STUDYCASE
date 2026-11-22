@@ -135,6 +135,8 @@ export class SimulationEngine {
     this.patientRegistry = new Map();
     // Tiket antrean aktif milik pengguna Warga (uid -> { patientCode, hospitalId, unit, status })
     this.wargaTickets = new Map();
+    // Daftar rujukan yang sedang dalam perjalanan ambulans (id -> ringkasan untuk UI)
+    this.activeReferrals = new Map();
 
     // 2. Bangun EventScheduler (PriorityQueue berbasis min-heap)
     this.scheduler = new PriorityQueue((a, b) =>
@@ -485,8 +487,9 @@ export class SimulationEngine {
       }
 
       case 'amb_arrive_dest': {
-        const { ambulance, patient, fromHospitalId, toHospitalId, routeEdges, neededUnit } =
+        const { ambulance, dispatchId, patient, fromHospitalId, toHospitalId, routeEdges, neededUnit } =
           ev.payload;
+        if (dispatchId) this.activeReferrals.delete(dispatchId);
         this._updateEdgeTraffic(routeEdges, -1);
 
         const destRs = this.hospitals.get(toHospitalId);
@@ -903,8 +906,21 @@ export class SimulationEngine {
       `Pasien ${triageWord} dirujuk dari ${fromRs.name} ke ${destRs.name} (±${req.travelMin} menit).`
     );
 
+    const dispatchId = `${ambulance.id}_${++this.ambulanceSeq}`;
+    this.activeReferrals.set(dispatchId, {
+      id: dispatchId,
+      patientCode: req.patient.code,
+      triage: req.patient.triage,
+      fromId: fromRs.id,
+      fromName: fromRs.name,
+      toId: destRs.id,
+      toName: destRs.name,
+      travelMin: req.travelMin,
+      etaSimTime: this.simTime + req.travelMin,
+    });
+
     this._emit('ambulance:dispatch', {
-      id: `${ambulance.id}_${++this.ambulanceSeq}`,
+      id: dispatchId,
       ambulanceId: ambulance.id,
       from: fromRs.id,
       to: destRs.id,
@@ -916,6 +932,7 @@ export class SimulationEngine {
 
     this._schedule(this.simTime + req.travelMin, 'amb_arrive_dest', {
       ambulance,
+      dispatchId,
       patient: req.patient,
       fromHospitalId: fromRs.id,
       toHospitalId: destRs.id,
@@ -1467,28 +1484,29 @@ export class SimulationEngine {
       neededUnit: null,
     };
 
+    let dispatchedImmediately = false;
     if (!fromRs.freeAmbulances.isEmpty()) {
       this._dispatchAmbulance(fromRs, req);
+      dispatchedImmediately = true;
     } else {
       fromRs.ambRequestQueue.enqueue(req);
-    }
-
-    if (recordUndo && scopeKey) {
-      const desc = `Alihkan ${patient.code} ke ${toRs.name}`;
-      this.undoManager.record(scopeKey, desc, () => {
-        // Jika permintaan masih di antrean ambulans, kembalikan ke IGD asal
-        const removedReq = fromRs.ambRequestQueue.remove(
-          (r) => r.patient.code === patient.code
-        );
-        if (removedReq) {
-          removedReq.patient.alreadyReferred = false;
-          fromRs.igdQueue.push(removedReq.patient);
-        }
-      });
+      // Hanya masuk Stack Undo jika masih menunggu ambulans (ambulans yang sudah melaju tidak dibatalkan paksa)
+      if (recordUndo && scopeKey) {
+        const desc = `Alihkan ${patient.code} ke ${toRs.name}`;
+        this.undoManager.record(scopeKey, desc, () => {
+          const removedReq = fromRs.ambRequestQueue.remove(
+            (r) => r.patient.code === patient.code
+          );
+          if (removedReq) {
+            removedReq.patient.alreadyReferred = false;
+            fromRs.igdQueue.push(removedReq.patient);
+          }
+        });
+      }
     }
 
     this._syncTreeAndStatuses(false);
-    return { ok: true, travelMin };
+    return { ok: true, travelMin, dispatchedImmediately };
   }
 
   // ==================== PAYLOAD SOCKET.IO ====================
@@ -1527,6 +1545,10 @@ export class SimulationEngine {
       policy: { autoReferral: this.autoReferral },
       bridges: this.getBridgesState(),
       activeOutbreaks: Array.from(this.outbreaks.keys()),
+      activeReferrals: Array.from(this.activeReferrals.values()).slice(0, 5).map((r) => ({
+        ...r,
+        remainMin: Math.max(1, r.etaSimTime - this.simTime),
+      })),
       undoInfo: this.undoManager.getInfo('dinkes'),
       kpi: this.getTickPayload().kpi,
     };
@@ -1573,6 +1595,10 @@ export class SimulationEngine {
       hospitals,
       bridges: this.getBridgesState(),
       activeOutbreaks: Array.from(this.outbreaks.keys()),
+      activeReferrals: Array.from(this.activeReferrals.values()).slice(0, 5).map((r) => ({
+        ...r,
+        remainMin: Math.max(1, r.etaSimTime - this.simTime),
+      })),
       undoInfo: this.undoManager.getInfo('dinkes'),
       kpi: {
         totalIgdQueue: totalAgg.igdQueue,

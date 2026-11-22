@@ -124,6 +124,13 @@ app.patch('/api/users/:uid', requireAuth, requireHttpRole('dinkes'), (req, res) 
   if (result.error) {
     return res.status(result.status || 400).json({ error: result.error });
   }
+  // Sinkronkan perubahan peran secara real-time ke tab pengguna yang sedang aktif
+  for (const s of io.sockets.sockets.values()) {
+    if (s.data?.user?.uid === result.user.uid) {
+      s.data.user = result.user;
+      s.emit('profile:updated', result.user);
+    }
+  }
   return res.json({ user: result.user });
 });
 

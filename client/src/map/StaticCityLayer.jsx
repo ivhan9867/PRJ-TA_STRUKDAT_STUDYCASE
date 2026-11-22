@@ -61,8 +61,21 @@ export const StaticCityLayer = memo(function StaticCityLayer({ cities, nodes, ed
       <path d={geo.suryaLandPath} fill="var(--map-land-surya)" />
       <path d={geo.tirtaLandPath} fill="var(--map-land-tirta)" />
 
-      {/* 2. Sungai melengkung di tengah */}
-      <path d={geo.riverPath} fill="var(--map-water)" />
+      {/* 2. Sungai melengkung di tengah dengan tepi sungai bertingkat (shoreline) */}
+      <path
+        d={geo.riverPath}
+        fill="var(--map-water)"
+        stroke="#DCEBF8"
+        strokeWidth="14"
+        strokeLinejoin="round"
+      />
+      <path
+        d={geo.riverPath}
+        fill="var(--map-water)"
+        stroke="#A9CBEB"
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+      />
       <path
         d={geo.rippleA}
         fill="none"
@@ -79,6 +92,25 @@ export const StaticCityLayer = memo(function StaticCityLayer({ cities, nodes, ed
         strokeLinecap="round"
         strokeDasharray="18 46"
       />
+
+      {/* Landmark khas Kota Surya: Alun-alun bundar berair mancur */}
+      <g transform="translate(275, 450)">
+        <circle r="38" fill="var(--map-park)" stroke="#B7D9BE" strokeWidth="2" />
+        <line x1="-36" y1="0" x2="36" y2="0" stroke="#F8FAFC" strokeWidth="4" />
+        <line x1="0" y1="-36" x2="0" y2="36" stroke="#F8FAFC" strokeWidth="4" />
+        <circle r="15" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1.5" />
+        <circle r="9" fill="#93C5FD" opacity="0.85" />
+        <circle r="3.5" fill="#FFFFFF" opacity="0.9" />
+      </g>
+
+      {/* Landmark khas Kota Tirta: Dermaga sungai & perahu kecil */}
+      <g transform="translate(888, 455)">
+        <rect x="-18" y="-14" width="28" height="7" rx="2" fill="#CBD5E1" stroke="#94A3B8" strokeWidth="1" />
+        <rect x="-12" y="7" width="22" height="7" rx="2" fill="#CBD5E1" stroke="#94A3B8" strokeWidth="1" />
+        <rect x="6" y="-22" width="8" height="44" rx="2" fill="#E2E8F0" stroke="#94A3B8" strokeWidth="1" />
+        {/* Perahu mini tenang di dermaga */}
+        <path d="M-28 -3 Q-22 -9 -14 -3 Q-22 3 -28 -3 Z" fill="#FFFFFF" stroke="#64748B" strokeWidth="1.2" />
+      </g>
 
       {/* 3. Taman hijau dan pohon */}
       <g>
@@ -194,6 +226,23 @@ export const StaticCityLayer = memo(function StaticCityLayer({ cities, nodes, ed
               y2={b.y}
               stroke="var(--map-road)"
               strokeWidth="14"
+            />
+          );
+        })}
+        {/* Marka garis tengah jalan halus */}
+        {roadEdges.map((edge) => {
+          const a = nodeMap.get(edge.a);
+          const b = nodeMap.get(edge.b);
+          return (
+            <line
+              key={`${edge.id}_dash`}
+              x1={a.x}
+              y1={a.y}
+              x2={b.x}
+              y2={b.y}
+              stroke="#DCE4EE"
+              strokeWidth="1.5"
+              strokeDasharray="8 12"
             />
           );
         })}
