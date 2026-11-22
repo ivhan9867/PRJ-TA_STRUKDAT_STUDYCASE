@@ -1,0 +1,59 @@
+{
+  "cities": [
+    { "id": "surya", "name": "Surya", "labelAt": [350, 130], "bounds": [0, 0, 700, 900] },
+    { "id": "tirta", "name": "Tirta", "labelAt": [1250, 130], "bounds": [900, 0, 1600, 900] }
+  ],
+  "nodes": [
+    { "id": "rs_surya_utama",   "kind": "hospital", "city": "surya", "x": 230,  "y": 250 },
+    { "id": "rs_surya_timur",   "kind": "hospital", "city": "surya", "x": 560,  "y": 190 },
+    { "id": "rs_surya_barat",   "kind": "hospital", "city": "surya", "x": 230,  "y": 650 },
+    { "id": "j_s1", "kind": "junction", "city": "surya", "x": 400, "y": 250 },
+    { "id": "j_s2", "kind": "junction", "city": "surya", "x": 400, "y": 450 },
+    { "id": "j_s3", "kind": "junction", "city": "surya", "x": 400, "y": 650 },
+    { "id": "j_s4", "kind": "junction", "city": "surya", "x": 560, "y": 450 },
+    { "id": "jb_s_utara",   "kind": "bridgeEnd", "city": "surya", "x": 700, "y": 300 },
+    { "id": "jb_s_selatan", "kind": "bridgeEnd", "city": "surya", "x": 700, "y": 600 },
+
+    { "id": "rs_tirta_raya",    "kind": "hospital", "city": "tirta", "x": 1370, "y": 300 },
+    { "id": "rs_tirta_utara",   "kind": "hospital", "city": "tirta", "x": 1060, "y": 170 },
+    { "id": "rs_tirta_selatan", "kind": "hospital", "city": "tirta", "x": 1050, "y": 660 },
+    { "id": "j_t1", "kind": "junction", "city": "tirta", "x": 1200, "y": 300 },
+    { "id": "j_t2", "kind": "junction", "city": "tirta", "x": 1200, "y": 480 },
+    { "id": "j_t3", "kind": "junction", "city": "tirta", "x": 1200, "y": 650 },
+    { "id": "jb_t_utara",   "kind": "bridgeEnd", "city": "tirta", "x": 900, "y": 300 },
+    { "id": "jb_t_selatan", "kind": "bridgeEnd", "city": "tirta", "x": 900, "y": 600 }
+  ],
+  "edges": [
+    { "id": "e_s1",  "a": "rs_surya_utama", "b": "j_s1" },
+    { "id": "e_s2",  "a": "j_s1", "b": "j_s2" },
+    { "id": "e_s3",  "a": "j_s2", "b": "j_s3" },
+    { "id": "e_s4",  "a": "rs_surya_barat", "b": "j_s3" },
+    { "id": "e_s5",  "a": "rs_surya_timur", "b": "j_s1" },
+    { "id": "e_s6",  "a": "rs_surya_timur", "b": "jb_s_utara" },
+    { "id": "e_s7",  "a": "j_s2", "b": "j_s4" },
+    { "id": "e_s8",  "a": "j_s4", "b": "jb_s_utara" },
+    { "id": "e_s9",  "a": "j_s4", "b": "jb_s_selatan" },
+    { "id": "e_s10", "a": "j_s3", "b": "jb_s_selatan" },
+
+    { "id": "e_t1", "a": "rs_tirta_raya", "b": "j_t1" },
+    { "id": "e_t2", "a": "rs_tirta_utara", "b": "j_t1" },
+    { "id": "e_t3", "a": "rs_tirta_utara", "b": "jb_t_utara" },
+    { "id": "e_t4", "a": "j_t1", "b": "jb_t_utara" },
+    { "id": "e_t5", "a": "j_t1", "b": "j_t2" },
+    { "id": "e_t6", "a": "j_t2", "b": "j_t3" },
+    { "id": "e_t7", "a": "rs_tirta_selatan", "b": "j_t3" },
+    { "id": "e_t8", "a": "j_t2", "b": "jb_t_selatan" },
+    { "id": "e_t9", "a": "j_t3", "b": "jb_t_selatan" },
+
+    { "id": "e_jembatan_utara",   "a": "jb_s_utara",   "b": "jb_t_utara",   "bridge": true, "name": "Jembatan Utara" },
+    { "id": "e_jembatan_selatan", "a": "jb_s_selatan", "b": "jb_t_selatan", "bridge": true, "name": "Jembatan Selatan" }
+  ],
+  "hospitals": [
+    { "id": "rs_surya_utama",   "name": "RS Surya Utama",   "city": "surya", "type": "A", "igdDoctors": 6, "poliDoctors": 4, "bedsInap": 60, "bedsIcu": 12, "ambulances": 2 },
+    { "id": "rs_surya_timur",   "name": "RS Surya Timur",   "city": "surya", "type": "B", "igdDoctors": 4, "poliDoctors": 3, "bedsInap": 30, "bedsIcu": 6,  "ambulances": 1 },
+    { "id": "rs_surya_barat",   "name": "RS Surya Barat",   "city": "surya", "type": "C", "igdDoctors": 2, "poliDoctors": 2, "bedsInap": 12, "bedsIcu": 0,  "ambulances": 1 },
+    { "id": "rs_tirta_raya",    "name": "RS Tirta Raya",    "city": "tirta", "type": "A", "igdDoctors": 6, "poliDoctors": 4, "bedsInap": 55, "bedsIcu": 10, "ambulances": 2 },
+    { "id": "rs_tirta_utara",   "name": "RS Tirta Utara",   "city": "tirta", "type": "C", "igdDoctors": 2, "poliDoctors": 2, "bedsInap": 12, "bedsIcu": 0,  "ambulances": 1 },
+    { "id": "rs_tirta_selatan", "name": "RS Tirta Selatan", "city": "tirta", "type": "B", "igdDoctors": 4, "poliDoctors": 3, "bedsInap": 28, "bedsIcu": 6,  "ambulances": 1 }
+  ]
+}

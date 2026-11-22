@@ -1,0 +1,148 @@
+/* Token desain Simpul Sehat — persis mengikuti 01_DESIGN_SYSTEM.md */
+
+:root {
+  /* Peta */
+  --map-land-surya: #E8EFF8;
+  --map-land-tirta: #E6F2EF;
+  --map-block: #DCE4EE;
+  --map-park: #CFE5D4;
+  --map-water: #BFD9F0;
+  --map-road: #FFFFFF;
+  --map-road-edge: #D0D8E3;
+
+  /* Permukaan */
+  --surface: #FFFFFF;
+  --surface-glass: rgba(255, 255, 255, 0.90);
+  --surface-2: #F5F7FA;
+  --border: #E2E8F0;
+
+  /* Teks */
+  --text: #0F172A;
+  --text-muted: #64748B;
+  --text-faint: #94A3B8;
+
+  /* Aksen (aksi utama, rute rujukan, fokus) */
+  --accent: #2563EB;
+  --accent-soft: #DBEAFE;
+  --accent-ink: #1E3A8A;
+
+  /* Status (keterisian dan triase) */
+  --ok: #16A34A;
+  --ok-soft: #DCFCE7;
+  --warn: #D97706;
+  --warn-soft: #FEF3C7;
+  --danger: #DC2626;
+  --danger-soft: #FEE2E2;
+  --neutral: #94A3B8;
+  --neutral-soft: #F1F5F9;
+
+  /* Bentuk */
+  --radius-card: 24px;   /* kartu besar mengambang */
+  --radius-inner: 16px;  /* kartu di dalam kartu, input */
+  --radius-btn: 12px;
+  --radius-pill: 999px;
+
+  --shadow-float: 0 10px 32px rgba(15, 23, 42, .10), 0 2px 6px rgba(15, 23, 42, .05);
+  --shadow-chip: 0 4px 14px rgba(15, 23, 42, .10);
+
+  /* Gerak */
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --t-fast: 150ms;
+  --t-base: 250ms;
+  --t-slow: 400ms;
+
+  /* Tipografi */
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-body: 'Figtree', system-ui, sans-serif;
+}
+
+/* Utilitas tipografi sesuai 01_DESIGN_SYSTEM.md */
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.type-kpi {
+  font-family: var(--font-display);
+  font-size: 36px;
+  line-height: 40px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.type-h1 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+}
+
+.type-h2 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 600;
+}
+
+.type-h3 {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+.type-body {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 400;
+}
+
+.type-caption {
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* Permukaan kaca untuk kartu mengambang & chip di atas peta */
+.surface-glass {
+  background-color: var(--surface-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Fokus keyboard yang jelas (aksesibilitas) */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--accent-soft);
+}
+
+@keyframes hospital-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+.hospital-pulse-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hospital-pulse 1.6s var(--ease) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reduce-motion-pause {
+    animation: none !important;
+  }
+}
