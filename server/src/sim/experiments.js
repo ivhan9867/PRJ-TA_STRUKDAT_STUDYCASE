@@ -1,6 +1,7 @@
-import { performance } from 'node:perf_hooks';
 import { SimulationEngine } from './engine.js';
 import { LinkedList, Graph } from '../ds/index.js';
+
+const perf = globalThis.performance;
 
 function meanAndSd(values) {
   if (!values.length) return { mean: 0, sd: 0 };
@@ -152,14 +153,14 @@ export function runDataStructureBenchmarks() {
   // Benchmark 1: Tambah di depan
   for (const n of [1000, 10000, 100000]) {
     const ll = new LinkedList();
-    const t0 = performance.now();
+    const t0 = perf.now();
     for (let i = 0; i < n; i++) ll.prepend(i);
-    const llMs = Math.round((performance.now() - t0) * 100) / 100;
+    const llMs = Math.round((perf.now() - t0) * 100) / 100;
 
     const arr = [];
-    const t1 = performance.now();
+    const t1 = perf.now();
     for (let i = 0; i < n; i++) arr.unshift(i);
-    const arrMs = Math.round((performance.now() - t1) * 100) / 100;
+    const arrMs = Math.round((perf.now() - t1) * 100) / 100;
 
     rows.push({
       group: 'Tambah di depan',
@@ -177,13 +178,13 @@ export function runDataStructureBenchmarks() {
     const start = 'n_0';
     const end = `n_${n - 1}`;
 
-    const t0 = performance.now();
+    const t0 = perf.now();
     g.dijkstra(start, end);
-    const heapMs = Math.round((performance.now() - t0) * 100) / 100;
+    const heapMs = Math.round((perf.now() - t0) * 100) / 100;
 
-    const t1 = performance.now();
+    const t1 = perf.now();
     dijkstraLinear(g, start, end);
-    const linearMs = Math.round((performance.now() - t1) * 100) / 100;
+    const linearMs = Math.round((perf.now() - t1) * 100) / 100;
 
     rows.push({
       group: 'Dijkstra rute tercepat',

@@ -23,6 +23,13 @@ import { Card, Button, Tabs, StatusBadge } from '../../design/index.js';
 import { ACADEMIC_STRUCTURES } from './academicMetadata.js';
 import { HeapTreeVisualizer } from './HeapTreeVisualizer.jsx';
 import { GraphMiniMap } from './GraphMiniMap.jsx';
+import {
+  IS_STATIC_MODE,
+  localGetAcademicLive,
+  localGraphQuery,
+  localRunExperiment,
+  localRunBenchmark,
+} from '../../state/localEngineAdapter.js';
 
 const MAIN_TABS = [
   { id: 'ds', label: 'Struktur data' },
@@ -72,6 +79,10 @@ export function ModeAkademikPage({ token, hospitals }) {
   };
 
   const fetchLive = useCallback(async () => {
+    if (IS_STATIC_MODE) {
+      setLiveData(localGetAcademicLive());
+      return;
+    }
     const res = await fetch('/api/academic/live', {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -83,16 +94,18 @@ export function ModeAkademikPage({ token, hospitals }) {
   }, [fetchLive]);
 
   const runGraphQuery = async () => {
-    const res = await fetch('/api/academic/graph-query', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ fromId: graphFrom, toId: graphTo }),
-    });
-    if (res.ok) {
-      const data = await res.json();
+    const data = IS_STATIC_MODE
+      ? localGraphQuery(graphFrom, graphTo)
+      : await fetch('/api/academic/graph-query', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ fromId: graphFrom, toId: graphTo }),
+        }).then((r) => (r.ok ? r.json() : null));
+
+    if (data) {
       setGraphResult(data);
       appendLog(
         data.dijkstra.found
@@ -105,6 +118,11 @@ export function ModeAkademikPage({ token, hospitals }) {
   const runExperiment = async () => {
     setExpLoading(true);
     try {
+      if (IS_STATIC_MODE) {
+        await new Promise((r) => setTimeout(r, 30));
+        setExpResult(localRunExperiment({ scenario, days, runs }));
+        return;
+      }
       const res = await fetch('/api/academic/experiment', {
         method: 'POST',
         headers: {
@@ -122,6 +140,11 @@ export function ModeAkademikPage({ token, hospitals }) {
   const runBenchmark = async () => {
     setBenchLoading(true);
     try {
+      if (IS_STATIC_MODE) {
+        await new Promise((r) => setTimeout(r, 30));
+        setBenchResult(localRunBenchmark());
+        return;
+      }
       const res = await fetch('/api/academic/benchmark', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },

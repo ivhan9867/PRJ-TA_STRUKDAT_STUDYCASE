@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Users, Check } from 'lucide-react';
 import { ROLE_LABEL } from '@shared/constants.js';
 import { Card, Button, EmptyState } from '../design/index.js';
+import { IS_STATIC_MODE, localListUsers, localUpdateUserRole } from '../state/localEngineAdapter.js';
 
 /**
  * Halaman Pengguna khusus Dinkes (02_UI_SPEC.md bagian 7).
@@ -18,6 +19,15 @@ export function AdminPenggunaPage({ currentUser, token, hospitals, onToast }) {
   const loadUsers = useCallback(async () => {
     setLoading(true);
     setError(null);
+    if (IS_STATIC_MODE) {
+      const list = localListUsers();
+      setUsers(list);
+      const initial = {};
+      for (const u of list) initial[u.uid] = { role: u.role, hospitalId: u.hospitalId || '' };
+      setDrafts(initial);
+      setLoading(false);
+      return;
+    }
     try {
       const res = await fetch('/api/users', {
         headers: { Authorization: `Bearer ${token}` },
@@ -46,6 +56,23 @@ export function AdminPenggunaPage({ currentUser, token, hospitals, onToast }) {
     if (!draft) return;
     setSavingUid(u.uid);
     try {
+      if (IS_STATIC_MODE) {
+        const result = localUpdateUserRole(currentUser, u.uid, {
+          role: draft.role,
+          hospitalId: draft.role === 'petugas' ? draft.hospitalId || null : null,
+        });
+        if (result.error) {
+          onToast?.({ id: `err_${Date.now()}`, severity: 'danger', message: result.error });
+          return;
+        }
+        setUsers((prev) => prev.map((item) => (item.uid === u.uid ? result.user : item)));
+        onToast?.({
+          id: `role_${Date.now()}`,
+          severity: 'info',
+          message: `Peran ${result.user.displayName} diubah menjadi ${ROLE_LABEL[result.user.role] || result.user.role}.`,
+        });
+        return;
+      }
       const res = await fetch(`/api/users/${u.uid}`, {
         method: 'PATCH',
         headers: {

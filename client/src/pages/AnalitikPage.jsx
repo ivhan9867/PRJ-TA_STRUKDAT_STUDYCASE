@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import { FlaskConical, RefreshCw } from 'lucide-react';
 import { Card, Button, EmptyState } from '../design/index.js';
+import { IS_STATIC_MODE, localGetAnalytics } from '../state/localEngineAdapter.js';
 
 const EVENT_FILTERS = [
   { id: 'all', label: 'Semua' },
@@ -31,6 +32,11 @@ export function AnalitikPage({ token, onOpenAcademic }) {
   const [eventFilter, setEventFilter] = useState('all');
 
   const fetchAnalytics = useCallback(async () => {
+    if (IS_STATIC_MODE) {
+      setData(localGetAnalytics());
+      setLoading(false);
+      return;
+    }
     try {
       const res = await fetch('/api/analytics', {
         headers: { Authorization: `Bearer ${token}` },

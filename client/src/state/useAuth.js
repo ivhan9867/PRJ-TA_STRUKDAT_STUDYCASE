@@ -1,4 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
+import {
+  IS_STATIC_MODE,
+  localLogin,
+  localRegister,
+  localVerifyToken,
+  setLocalActiveUser,
+} from './localEngineAdapter.js';
 
 const STORAGE_KEY = 'simpul_sehat_session';
 
@@ -37,6 +44,13 @@ export function useAuth() {
       setLoading(false);
       return;
     }
+    if (IS_STATIC_MODE) {
+      const localUser = localVerifyToken(token);
+      if (localUser) setUser(localUser);
+      else saveSession(null, null);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     fetch('/api/auth/me', {
@@ -64,6 +78,15 @@ export function useAuth() {
   const login = useCallback(
     async (email, password) => {
       setError(null);
+      if (IS_STATIC_MODE) {
+        const res = localLogin(email, password);
+        if (res.error) {
+          setError(res.error);
+          return false;
+        }
+        saveSession(res.token, res.user);
+        return true;
+      }
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -84,6 +107,15 @@ export function useAuth() {
   const register = useCallback(
     async ({ displayName, email, password }) => {
       setError(null);
+      if (IS_STATIC_MODE) {
+        const res = localRegister({ displayName, email, password });
+        if (res.error) {
+          setError(res.error);
+          return false;
+        }
+        saveSession(res.token, res.user);
+        return true;
+      }
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -101,6 +133,7 @@ export function useAuth() {
   );
 
   const logout = useCallback(() => {
+    if (IS_STATIC_MODE) setLocalActiveUser(null);
     saveSession(null, null);
   }, [saveSession]);
 
