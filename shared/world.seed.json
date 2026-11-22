@@ -1,27 +1,30 @@
 {
+  "worldSize": { "width": 2200, "height": 1260 },
   "cities": [
-    { "id": "surya", "name": "Surya", "labelAt": [350, 130], "bounds": [0, 0, 700, 900] },
-    { "id": "tirta", "name": "Tirta", "labelAt": [1250, 130], "bounds": [900, 0, 1600, 900] }
+    { "id": "surya", "name": "Surya", "labelAt": [460, 155], "bounds": [0, 0, 960, 1260] },
+    { "id": "tirta", "name": "Tirta", "labelAt": [1740, 155], "bounds": [1240, 0, 2200, 1260] }
   ],
   "nodes": [
-    { "id": "rs_surya_utama",   "kind": "hospital", "city": "surya", "x": 230,  "y": 250 },
-    { "id": "rs_surya_timur",   "kind": "hospital", "city": "surya", "x": 560,  "y": 190 },
-    { "id": "rs_surya_barat",   "kind": "hospital", "city": "surya", "x": 230,  "y": 650 },
-    { "id": "j_s1", "kind": "junction", "city": "surya", "x": 400, "y": 250 },
-    { "id": "j_s2", "kind": "junction", "city": "surya", "x": 400, "y": 450 },
-    { "id": "j_s3", "kind": "junction", "city": "surya", "x": 400, "y": 650 },
-    { "id": "j_s4", "kind": "junction", "city": "surya", "x": 560, "y": 450 },
-    { "id": "jb_s_utara",   "kind": "bridgeEnd", "city": "surya", "x": 700, "y": 300 },
-    { "id": "jb_s_selatan", "kind": "bridgeEnd", "city": "surya", "x": 700, "y": 600 },
+    { "id": "rs_surya_utama",     "kind": "hospital", "city": "surya", "x": 260,  "y": 280 },
+    { "id": "rs_surya_timur",     "kind": "hospital", "city": "surya", "x": 740,  "y": 220 },
+    { "id": "rs_surya_barat",     "kind": "hospital", "city": "surya", "x": 310,  "y": 880 },
+    { "id": "rs_pusat_nusantara", "kind": "hospital", "city": "surya", "x": 540,  "y": 1080 },
+    { "id": "j_s1", "kind": "junction", "city": "surya", "x": 500, "y": 280 },
+    { "id": "j_s2", "kind": "junction", "city": "surya", "x": 500, "y": 580 },
+    { "id": "j_s3", "kind": "junction", "city": "surya", "x": 500, "y": 880 },
+    { "id": "j_s4", "kind": "junction", "city": "surya", "x": 740, "y": 580 },
+    { "id": "j_s5", "kind": "junction", "city": "surya", "x": 740, "y": 1020 },
+    { "id": "jb_s_utara",   "kind": "bridgeEnd", "city": "surya", "x": 960, "y": 380 },
+    { "id": "jb_s_selatan", "kind": "bridgeEnd", "city": "surya", "x": 960, "y": 880 },
 
-    { "id": "rs_tirta_raya",    "kind": "hospital", "city": "tirta", "x": 1370, "y": 300 },
-    { "id": "rs_tirta_utara",   "kind": "hospital", "city": "tirta", "x": 1060, "y": 170 },
-    { "id": "rs_tirta_selatan", "kind": "hospital", "city": "tirta", "x": 1050, "y": 660 },
-    { "id": "j_t1", "kind": "junction", "city": "tirta", "x": 1200, "y": 300 },
-    { "id": "j_t2", "kind": "junction", "city": "tirta", "x": 1200, "y": 480 },
-    { "id": "j_t3", "kind": "junction", "city": "tirta", "x": 1200, "y": 650 },
-    { "id": "jb_t_utara",   "kind": "bridgeEnd", "city": "tirta", "x": 900, "y": 300 },
-    { "id": "jb_t_selatan", "kind": "bridgeEnd", "city": "tirta", "x": 900, "y": 600 }
+    { "id": "rs_tirta_raya",    "kind": "hospital", "city": "tirta", "x": 1920, "y": 360 },
+    { "id": "rs_tirta_utara",   "kind": "hospital", "city": "tirta", "x": 1480, "y": 210 },
+    { "id": "rs_tirta_selatan", "kind": "hospital", "city": "tirta", "x": 1460, "y": 940 },
+    { "id": "j_t1", "kind": "junction", "city": "tirta", "x": 1680, "y": 360 },
+    { "id": "j_t2", "kind": "junction", "city": "tirta", "x": 1680, "y": 640 },
+    { "id": "j_t3", "kind": "junction", "city": "tirta", "x": 1680, "y": 920 },
+    { "id": "jb_t_utara",   "kind": "bridgeEnd", "city": "tirta", "x": 1240, "y": 380 },
+    { "id": "jb_t_selatan", "kind": "bridgeEnd", "city": "tirta", "x": 1240, "y": 880 }
   ],
   "edges": [
     { "id": "e_s1",  "a": "rs_surya_utama", "b": "j_s1" },
@@ -34,6 +37,9 @@
     { "id": "e_s8",  "a": "j_s4", "b": "jb_s_utara" },
     { "id": "e_s9",  "a": "j_s4", "b": "jb_s_selatan" },
     { "id": "e_s10", "a": "j_s3", "b": "jb_s_selatan" },
+    { "id": "e_s11", "a": "rs_pusat_nusantara", "b": "j_s3" },
+    { "id": "e_s12", "a": "rs_pusat_nusantara", "b": "j_s5" },
+    { "id": "e_s13", "a": "j_s5", "b": "jb_s_selatan" },
 
     { "id": "e_t1", "a": "rs_tirta_raya", "b": "j_t1" },
     { "id": "e_t2", "a": "rs_tirta_utara", "b": "j_t1" },
@@ -49,11 +55,12 @@
     { "id": "e_jembatan_selatan", "a": "jb_s_selatan", "b": "jb_t_selatan", "bridge": true, "name": "Jembatan Selatan" }
   ],
   "hospitals": [
-    { "id": "rs_surya_utama",   "name": "RS Surya Utama",   "city": "surya", "type": "A", "igdDoctors": 6, "poliDoctors": 4, "bedsInap": 60, "bedsIcu": 12, "ambulances": 2 },
-    { "id": "rs_surya_timur",   "name": "RS Surya Timur",   "city": "surya", "type": "B", "igdDoctors": 4, "poliDoctors": 3, "bedsInap": 30, "bedsIcu": 6,  "ambulances": 1 },
-    { "id": "rs_surya_barat",   "name": "RS Surya Barat",   "city": "surya", "type": "C", "igdDoctors": 2, "poliDoctors": 2, "bedsInap": 12, "bedsIcu": 0,  "ambulances": 1 },
-    { "id": "rs_tirta_raya",    "name": "RS Tirta Raya",    "city": "tirta", "type": "A", "igdDoctors": 6, "poliDoctors": 4, "bedsInap": 55, "bedsIcu": 10, "ambulances": 2 },
-    { "id": "rs_tirta_utara",   "name": "RS Tirta Utara",   "city": "tirta", "type": "C", "igdDoctors": 2, "poliDoctors": 2, "bedsInap": 12, "bedsIcu": 0,  "ambulances": 1 },
-    { "id": "rs_tirta_selatan", "name": "RS Tirta Selatan", "city": "tirta", "type": "B", "igdDoctors": 4, "poliDoctors": 3, "bedsInap": 28, "bedsIcu": 6,  "ambulances": 1 }
+    { "id": "rs_pusat_nusantara", "name": "RS Pusat Nusantara", "city": "surya", "type": "A+", "igdDoctors": 10, "poliDoctors": 6, "bedsInap": 90, "bedsIcu": 20, "ambulances": 3 },
+    { "id": "rs_surya_utama",     "name": "RS Surya Utama",     "city": "surya", "type": "A",  "igdDoctors": 6,  "poliDoctors": 4, "bedsInap": 60, "bedsIcu": 12, "ambulances": 2 },
+    { "id": "rs_surya_timur",     "name": "RS Surya Timur",     "city": "surya", "type": "B",  "igdDoctors": 4,  "poliDoctors": 3, "bedsInap": 30, "bedsIcu": 6,  "ambulances": 1 },
+    { "id": "rs_surya_barat",     "name": "RS Surya Barat",     "city": "surya", "type": "C",  "igdDoctors": 2,  "poliDoctors": 2, "bedsInap": 12, "bedsIcu": 0,  "ambulances": 1 },
+    { "id": "rs_tirta_raya",      "name": "RS Tirta Raya",      "city": "tirta", "type": "A",  "igdDoctors": 6,  "poliDoctors": 4, "bedsInap": 55, "bedsIcu": 10, "ambulances": 2 },
+    { "id": "rs_tirta_utara",     "name": "RS Tirta Utara",     "city": "tirta", "type": "C",  "igdDoctors": 2,  "poliDoctors": 2, "bedsInap": 12, "bedsIcu": 0,  "ambulances": 1 },
+    { "id": "rs_tirta_selatan",   "name": "RS Tirta Selatan",   "city": "tirta", "type": "B",  "igdDoctors": 4,  "poliDoctors": 3, "bedsInap": 28, "bedsIcu": 6,  "ambulances": 1 }
   ]
 }

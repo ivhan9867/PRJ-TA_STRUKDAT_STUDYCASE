@@ -61,8 +61,8 @@ test('Graph dijkstra memilih bobot total terkecil dibanding jalur lebih sedikit 
 
 test('Graph dunia dua kota (seed): rute RS Tirta Raya ke RS Surya Utama melewati Jembatan Utara', () => {
   const g = loadSeedGraph();
-  assert.equal(g.size(), 17);
-  assert.equal(g.edgeCount(), 21);
+  assert.equal(g.size(), 19);
+  assert.equal(g.edgeCount(), 24);
 
   const res = g.dijkstra('rs_tirta_raya', 'rs_surya_utama');
   assert.equal(res.found, true);

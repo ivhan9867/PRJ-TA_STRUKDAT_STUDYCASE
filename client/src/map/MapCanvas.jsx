@@ -10,10 +10,9 @@ import { StaticCityLayer } from './StaticCityLayer.jsx';
 import { BridgeLayer } from './BridgeLayer.jsx';
 import { HospitalMarker } from './HospitalMarker.jsx';
 import { MapOverlayCanvas } from './MapOverlayCanvas.jsx';
+import { WORLD_W, WORLD_H } from './cityDecor.js';
 
-const WORLD_W = 1600;
-const WORLD_H = 900;
-const MIN_ZOOM = 0.8;
+const MIN_ZOOM = 0.52;
 const MAX_ZOOM = 2.5;
 
 /**
@@ -67,7 +66,7 @@ export const MapCanvas = forwardRef(function MapCanvas(
     if (!el) return { x: 0, y: 0, zoom: 1 };
     const { width, height } = el.getBoundingClientRect();
     const fitScale = Math.min(width / WORLD_W, height / WORLD_H);
-    const zoom = clampZoom(Math.max(0.88, fitScale));
+    const zoom = clampZoom(Math.max(0.58, fitScale * 0.98));
     const x = (width - WORLD_W * zoom) / 2;
     const y = (height - WORLD_H * zoom) / 2;
     return { x, y, zoom };

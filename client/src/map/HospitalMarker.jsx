@@ -22,6 +22,7 @@ const STATUS_WORD = {
 };
 
 const SCALE_BY_TYPE = {
+  'A+': 1.3,
   A: 1.12,
   B: 0.96,
   C: 0.84,
@@ -132,34 +133,50 @@ export const HospitalMarker = memo(function HospitalMarker({
         {/* Bayangan gedung */}
         <ellipse cx="2" cy="11" rx="22" ry="8" fill="rgba(15, 23, 42, 0.14)" />
 
-        {/* Sayap kiri-kanan khusus Tipe A */}
-        {hospital.type === 'A' && (
+        {/* Sayap kiri-kanan & menara kembar khusus Tipe A dan A+ (RS Pusat) */}
+        {(hospital.type === 'A' || hospital.type === 'A+') && (
           <g>
             <rect
-              x="-24"
-              y="-6"
-              width="12"
-              height="16"
+              x={hospital.type === 'A+' ? -28 : -24}
+              y={hospital.type === 'A+' ? -12 : -6}
+              width={hospital.type === 'A+' ? 15 : 12}
+              height={hospital.type === 'A+' ? 22 : 16}
               rx="2.5"
               fill="#F8FAFC"
               stroke="#CBD5E1"
               strokeWidth="1.2"
             />
-            <rect x="-21" y="-2" width="3" height="3" rx="0.6" fill="#93C5FD" />
-            <rect x="-21" y="3" width="3" height="3" rx="0.6" fill="#93C5FD" />
+            <rect x={hospital.type === 'A+' ? -24 : -21} y="-7" width="3.2" height="3.2" rx="0.6" fill="#93C5FD" />
+            <rect x={hospital.type === 'A+' ? -24 : -21} y="-2" width="3.2" height="3.2" rx="0.6" fill="#93C5FD" />
+            <rect x={hospital.type === 'A+' ? -24 : -21} y="3" width="3.2" height="3.2" rx="0.6" fill="#93C5FD" />
 
             <rect
-              x="12"
-              y="-6"
-              width="12"
-              height="16"
+              x={hospital.type === 'A+' ? 13 : 12}
+              y={hospital.type === 'A+' ? -12 : -6}
+              width={hospital.type === 'A+' ? 15 : 12}
+              height={hospital.type === 'A+' ? 22 : 16}
               rx="2.5"
               fill="#F8FAFC"
               stroke="#CBD5E1"
               strokeWidth="1.2"
             />
-            <rect x="18" y="-2" width="3" height="3" rx="0.6" fill="#93C5FD" />
-            <rect x="18" y="3" width="3" height="3" rx="0.6" fill="#93C5FD" />
+            <rect x={hospital.type === 'A+' ? 20 : 18} y="-7" width="3.2" height="3.2" rx="0.6" fill="#93C5FD" />
+            <rect x={hospital.type === 'A+' ? 20 : 18} y="-2" width="3.2" height="3.2" rx="0.6" fill="#93C5FD" />
+            <rect x={hospital.type === 'A+' ? 20 : 18} y="3" width="3.2" height="3.2" rx="0.6" fill="#93C5FD" />
+
+            {/* Helipad mini khusus Tipe A+ (RS Pusat Rujukan Terbesar) */}
+            {hospital.type === 'A+' && (
+              <g transform="translate(-20.5, -15)">
+                <circle r="5.5" fill="#1E3A8A" stroke="#FFFFFF" strokeWidth="1.2" />
+                <text
+                  y="2.5"
+                  textAnchor="middle"
+                  style={{ fontSize: '6.5px', fontWeight: 700, fill: '#FFFFFF', userSelect: 'none' }}
+                >
+                  H
+                </text>
+              </g>
+            )}
           </g>
         )}
 

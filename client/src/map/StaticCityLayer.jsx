@@ -1,18 +1,18 @@
 import { memo, useMemo } from 'react';
-import { generateCityDecor, riverCenterX, riverHalfWidth } from './cityDecor.js';
+import { generateCityDecor, riverCenterX, riverHalfWidth, WORLD_W, WORLD_H } from './cityDecor.js';
 import { generateCityHouses } from '@shared/cityHouses.js';
 
 /**
- * Membangun path SVG untuk daratan Surya, daratan Tirta, dan sungai melengkung di tengah.
+ * Membangun path SVG untuk daratan Surya, daratan Tirta, dan sungai melengkung di tengah (2200x1260).
  */
 function buildGeographyPaths() {
-  const steps = 18;
+  const steps = 22;
   const leftEdge = [];
   const rightEdge = [];
   const centerLine = [];
 
   for (let i = 0; i <= steps; i++) {
-    const y = (900 / steps) * i;
+    const y = (WORLD_H / steps) * i;
     const cx = riverCenterX(y);
     const hw = riverHalfWidth(y);
     leftEdge.push([Math.round(cx - hw), Math.round(y)]);
@@ -28,8 +28,8 @@ function buildGeographyPaths() {
   const rightLineFwd = rightEdge.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ');
 
   const riverPath = `${leftLine} ${rightLineRev} Z`;
-  const suryaLandPath = `M 0 0 ${leftLine.replace('M', 'L')} L 0 900 Z`;
-  const tirtaLandPath = `${rightLineFwd} L 1600 900 L 1600 0 Z`;
+  const suryaLandPath = `M 0 0 ${leftLine.replace('M', 'L')} L 0 ${WORLD_H} Z`;
+  const tirtaLandPath = `${rightLineFwd} L ${WORLD_W} ${WORLD_H} L ${WORLD_W} 0 Z`;
 
   // Garis arus sungai halus (dekoratif)
   const rippleA = centerLine
@@ -94,22 +94,21 @@ export const StaticCityLayer = memo(function StaticCityLayer({ cities, nodes, ed
       />
 
       {/* Landmark khas Kota Surya: Alun-alun bundar berair mancur */}
-      <g transform="translate(275, 450)">
-        <circle r="38" fill="var(--map-park)" stroke="#B7D9BE" strokeWidth="2" />
-        <line x1="-36" y1="0" x2="36" y2="0" stroke="#F8FAFC" strokeWidth="4" />
-        <line x1="0" y1="-36" x2="0" y2="36" stroke="#F8FAFC" strokeWidth="4" />
-        <circle r="15" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1.5" />
-        <circle r="9" fill="#93C5FD" opacity="0.85" />
-        <circle r="3.5" fill="#FFFFFF" opacity="0.9" />
+      <g transform="translate(330, 580)">
+        <circle r="46" fill="var(--map-park)" stroke="#B7D9BE" strokeWidth="2.2" />
+        <line x1="-44" y1="0" x2="44" y2="0" stroke="#F8FAFC" strokeWidth="4.5" />
+        <line x1="0" y1="-44" x2="0" y2="44" stroke="#F8FAFC" strokeWidth="4.5" />
+        <circle r="18" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1.5" />
+        <circle r="11" fill="#93C5FD" opacity="0.85" />
+        <circle r="4" fill="#FFFFFF" opacity="0.9" />
       </g>
 
       {/* Landmark khas Kota Tirta: Dermaga sungai & perahu kecil */}
-      <g transform="translate(888, 455)">
-        <rect x="-18" y="-14" width="28" height="7" rx="2" fill="#CBD5E1" stroke="#94A3B8" strokeWidth="1" />
-        <rect x="-12" y="7" width="22" height="7" rx="2" fill="#CBD5E1" stroke="#94A3B8" strokeWidth="1" />
-        <rect x="6" y="-22" width="8" height="44" rx="2" fill="#E2E8F0" stroke="#94A3B8" strokeWidth="1" />
-        {/* Perahu mini tenang di dermaga */}
-        <path d="M-28 -3 Q-22 -9 -14 -3 Q-22 3 -28 -3 Z" fill="#FFFFFF" stroke="#64748B" strokeWidth="1.2" />
+      <g transform="translate(1224, 640)">
+        <rect x="-20" y="-16" width="32" height="8" rx="2" fill="#CBD5E1" stroke="#94A3B8" strokeWidth="1" />
+        <rect x="-14" y="8" width="26" height="8" rx="2" fill="#CBD5E1" stroke="#94A3B8" strokeWidth="1" />
+        <rect x="8" y="-26" width="9" height="52" rx="2" fill="#E2E8F0" stroke="#94A3B8" strokeWidth="1" />
+        <path d="M-32 -3 Q-24 -10 -15 -3 Q-24 4 -32 -3 Z" fill="#FFFFFF" stroke="#64748B" strokeWidth="1.2" />
       </g>
 
       {/* 3. Taman hijau dan pohon */}

@@ -224,6 +224,7 @@ export function PetaOverlays({
                   >
                     <option value="tirta">Kota Tirta</option>
                     <option value="surya">Kota Surya</option>
+                    <option value="all">Kedua kota (Darurat)</option>
                   </select>
                   <Button
                     variant="secondary"

@@ -1076,11 +1076,24 @@ export class SimulationEngine {
   // ==================== KONTROL PUBLIK & SKENARIO (FASE 4) ====================
 
   /**
-   * Memicu skenario wabah di kota tertentu (Surya atau Tirta):
-   * Laju kedatangan dikali 4 selama 360 menit simulasi (6 jam).
+   * Memicu skenario wabah di kota tertentu (Surya, Tirta, atau "all" untuk kedua kota serentak):
+   * Laju kedatangan dikali outbreakMultiplier selama 360 menit simulasi (6 jam).
    * Tidak masuk Stack Undo karena lonjakan pasien yang sudah masuk tidak dapat ditarik kembali.
    */
   triggerOutbreak(cityId) {
+    if (cityId === 'all') {
+      for (const city of this.seedData.cities) {
+        this.outbreaks.set(city.id, this.simTime + SIM_CONFIG.outbreakDurationMin);
+      }
+      this._logEvent(
+        'wabah',
+        'danger',
+        null,
+        'Lonjakan pasien serentak di Kota Surya dan Kota Tirta.'
+      );
+      return true;
+    }
+
     const city = this.seedData.cities.find((c) => c.id === cityId);
     if (!city) return false;
 

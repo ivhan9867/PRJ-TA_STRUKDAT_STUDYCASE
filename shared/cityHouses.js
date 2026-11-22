@@ -1,8 +1,11 @@
 /**
- * Generator deterministik titik pemukiman rumah warga untuk Kota Surya & Kota Tirta.
+ * Generator deterministik titik pemukiman rumah warga untuk Kota Surya & Kota Tirta (peta 2200x1260).
  * Dipakai bersama oleh server (titik asal pasien keluar rumah) dan client (gambar rumah di peta SVG)
  * agar setiap pasien berjalan tepat dari pintu rumah warga yang tampil di peta.
  */
+
+export const WORLD_W = 2200;
+export const WORLD_H = 1260;
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -26,11 +29,11 @@ function distToSegment(px, py, x1, y1, x2, y2) {
 }
 
 export function riverCenterX(y) {
-  return 800 + Math.sin((y / 900) * Math.PI * 1.65 - 0.4) * 28;
+  return 1100 + Math.sin((y / WORLD_H) * Math.PI * 1.65 - 0.4) * 38;
 }
 
 export function riverHalfWidth(y) {
-  return 86 + Math.cos((y / 900) * Math.PI * 2.2) * 10;
+  return 110 + Math.cos((y / WORLD_H) * Math.PI * 2.2) * 14;
 }
 
 /**
@@ -49,52 +52,50 @@ export function generateCityHouses(nodes, edges) {
   const houses = [];
 
   function isHouseClear(cx, cy) {
-    if (cx < 55 || cx > 1545 || cy < 55 || cy > 845) return false;
+    if (cx < 65 || cx > WORLD_W - 65 || cy < 65 || cy > WORLD_H - 65) return false;
     const rc = riverCenterX(cy);
-    const rw = riverHalfWidth(cy) + 38;
+    const rw = riverHalfWidth(cy) + 46;
     if (Math.abs(cx - rc) < rw) return false;
 
     // Hindari watermark nama kota
-    if ((Math.abs(cx - 350) < 135 && Math.abs(cy - 120) < 46) ||
-        (Math.abs(cx - 1250) < 125 && Math.abs(cy - 120) < 46)) {
+    if ((Math.abs(cx - 460) < 160 && Math.abs(cy - 145) < 55) ||
+        (Math.abs(cx - 1740) < 150 && Math.abs(cy - 145) < 55)) {
       return false;
     }
 
     // Hindari marker RS
     for (const h of hospitals) {
-      if (Math.hypot(cx - h.x, cy - h.y) < 70) return false;
+      if (Math.hypot(cx - h.x, cy - h.y) < 82) return false;
     }
 
     // Hindari badan jalan utama
     for (const seg of segments) {
-      if (distToSegment(cx, cy, seg.a.x, seg.a.y, seg.b.x, seg.b.y) < 34) {
+      if (distToSegment(cx, cy, seg.a.x, seg.a.y, seg.b.x, seg.b.y) < 38) {
         return false;
       }
     }
 
     // Hindari tumpang tindih dengan rumah lain
     for (const existing of houses) {
-      if (Math.hypot(cx - existing.x, cy - existing.y) < 34) return false;
+      if (Math.hypot(cx - existing.x, cy - existing.y) < 38) return false;
     }
 
     return true;
   }
 
   let houseIdx = 0;
-  // Buat klaster pemukiman di sekitar tiap persimpangan (masing-masing 7–9 rumah)
   for (const j of junctions) {
     let placed = 0;
     let attempts = 0;
-    while (placed < 8 && attempts < 90) {
+    while (placed < 10 && attempts < 110) {
       attempts += 1;
       const angle = rng() * Math.PI * 2;
-      const dist = 54 + rng() * 145;
+      const dist = 62 + rng() * 195;
       const cx = Math.round(j.x + Math.cos(angle) * dist);
       const cy = Math.round(j.y + Math.sin(angle) * dist);
 
-      // Pastikan tetap di sisi kota yang sama
-      if (j.city === 'surya' && cx > 655) continue;
-      if (j.city === 'tirta' && cx < 945) continue;
+      if (j.city === 'surya' && cx > 905) continue;
+      if (j.city === 'tirta' && cx < 1295) continue;
       if (!isHouseClear(cx, cy)) continue;
 
       houses.push({
@@ -102,8 +103,8 @@ export function generateCityHouses(nodes, edges) {
         city: j.city,
         x: cx,
         y: cy,
-        w: Math.round(18 + rng() * 8),
-        h: Math.round(14 + rng() * 6),
+        w: Math.round(20 + rng() * 8),
+        h: Math.round(15 + rng() * 6),
         roofShade: rng() < 0.5 ? 0 : 1,
         nearestJunctionId: j.id,
         junctionX: j.x,

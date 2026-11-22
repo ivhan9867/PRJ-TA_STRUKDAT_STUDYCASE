@@ -1,10 +1,7 @@
 import { memo, useEffect, useMemo, useRef } from 'react';
-import { riverCenterX } from './cityDecor.js';
+import { riverCenterX, WORLD_W, WORLD_H } from './cityDecor.js';
 import { generateCityHouses } from '@shared/cityHouses.js';
 import worldSeed from '@shared/world.seed.json';
-
-const WORLD_W = 1600;
-const WORLD_H = 900;
 
 /**
  * Menghitung intensitas malam (0 = terang siang/pagi, 1 = malam penuh) dari simTime.

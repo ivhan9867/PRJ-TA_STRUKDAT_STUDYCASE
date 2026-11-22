@@ -6,8 +6,8 @@ import { PatientDetailPanel } from './PatientDetailPanel.jsx';
 import { ToastStack } from '../design/index.js';
 
 const CITY_FOCUS = {
-  surya: { x: 400, y: 440, zoom: 1.32 },
-  tirta: { x: 1180, y: 440, zoom: 1.32 },
+  surya: { x: 520, y: 630, zoom: 0.96 },
+  tirta: { x: 1680, y: 610, zoom: 0.96 },
 };
 
 /**

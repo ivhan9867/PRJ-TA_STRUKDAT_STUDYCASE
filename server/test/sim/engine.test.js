@@ -63,12 +63,16 @@ test('Rujukan otomatis: saat ICU RS Tirta Utara tidak tersedia dan pasien butuh 
     },
   });
 
-  // Jalankan 12 jam simulasi
-  for (let i = 0; i < 720; i++) {
+  // Masukkan beberapa pasien gawat ke RS Tirta Utara (Tipe C, 0 ICU) agar memicu rujukan ICU otomatis
+  for (let i = 0; i < 4; i++) {
+    engine.addManualIgdPatient('rs_tirta_utara', 'gawat');
+  }
+
+  for (let i = 0; i < 360; i++) {
     engine.step();
   }
 
-  assert.ok(dispatches.length > 0, 'Minimal ada rujukan otomatis dalam 12 jam simulasi');
+  assert.ok(dispatches.length > 0, 'Minimal ada rujukan otomatis saat RS Tipe C menerima pasien butuh ICU');
   assert.ok(engine.metrics.referralsTotal > 0);
 });
 

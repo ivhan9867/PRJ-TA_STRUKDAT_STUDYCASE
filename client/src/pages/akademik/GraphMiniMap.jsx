@@ -27,11 +27,11 @@ export function GraphMiniMap({ bridges = [], dijkstraPath = [], bfsPath = [], fr
       className="overflow-hidden rounded-2xl border"
       style={{ borderColor: 'var(--border)', backgroundColor: '#E8EFF8' }}
     >
-      <svg viewBox="0 0 1600 900" className="block w-full">
+      <svg viewBox="0 0 2200 1260" className="block w-full">
         {/* Daratan Surya, Sungai, Daratan Tirta */}
-        <rect x="0" y="0" width="720" height="900" fill="#E8EFF8" />
-        <rect x="880" y="0" width="720" height="900" fill="#E6F2EF" />
-        <rect x="720" y="0" width="160" height="900" fill="#BFD9F0" />
+        <rect x="0" y="0" width="980" height="1260" fill="#E8EFF8" />
+        <rect x="1220" y="0" width="980" height="1260" fill="#E6F2EF" />
+        <rect x="980" y="0" width="240" height="1260" fill="#BFD9F0" />
 
         {/* Semua ruas jalan & jembatan */}
         {worldSeed.edges.map((e) => {
