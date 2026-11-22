@@ -1,0 +1,29 @@
+name: CI — Tes dan Build Simpul Sehat
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ambil kode sumber
+        uses: actions/checkout@v4
+
+      - name: Siapkan Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Pasang dependensi (root, server, client)
+        run: npm run install:all
+
+      - name: Jalankan seluruh unit test (65 tes)
+        run: npm test
+
+      - name: Bangun bundel produksi client
+        run: npm run build

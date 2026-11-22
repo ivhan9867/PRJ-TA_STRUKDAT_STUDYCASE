@@ -18,6 +18,8 @@ import { registerSocketHandlers } from './socket/registerSocketHandlers.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SEED_PATH = path.resolve(__dirname, '../../shared/world.seed.json');
+const CLIENT_DIST_PATH = path.resolve(__dirname, '../../client/dist');
+const HAS_CLIENT_DIST = fs.existsSync(path.join(CLIENT_DIST_PATH, 'index.html'));
 
 const PORT = Number(process.env.PORT || 3001);
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
@@ -54,11 +56,18 @@ const userStore = new UserStore(worldSeed.hospitals.map((h) => h.id));
 const requireAuth = createAuthMiddleware(userStore);
 
 const app = express();
-app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
+if (HAS_CLIENT_DIST) {
+  app.use(express.static(CLIENT_DIST_PATH));
+}
+
 app.get('/', (_req, res) => {
-  res.type('html').send(`
+  if (HAS_CLIENT_DIST) {
+    return res.sendFile(path.join(CLIENT_DIST_PATH, 'index.html'));
+  }
+  return res.type('html').send(`
     <!doctype html>
     <html lang="id">
       <head><meta charset="utf-8"><title>${APP_NAME} — Server</title></head>
@@ -248,7 +257,7 @@ app.post('/api/academic/benchmark', requireAuth, (_req, res) => {
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
   cors: {
-    origin: CLIENT_ORIGIN,
+    origin: true,
     methods: ['GET', 'POST'],
   },
 });
