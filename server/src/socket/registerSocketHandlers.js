@@ -114,69 +114,102 @@ export function registerSocketHandlers(io, { engine, userStore }) {
       });
     });
 
-    // --- Perintah khusus Petugas RS (hanya untuk RS miliknya) ---
-    socket.on('hospital:callNext', ({ unit } = {}) => {
+    // Helper menentukan target RS: Petugas terkunci ke RS miliknya, Dinkes (Super Admin) bisa memilih RS mana pun
+    const resolveManagedHospitalId = (user, requestedHospitalId) => {
+      if (user.role === 'dinkes') {
+        return requestedHospitalId || null;
+      }
+      if (user.role === 'petugas') {
+        if (!user.hospitalId) return null;
+        if (requestedHospitalId && requestedHospitalId !== user.hospitalId) return null;
+        return user.hospitalId;
+      }
+      return null;
+    };
+
+    // --- Perintah operasional RS (Petugas hanya RS miliknya; Dinkes Super Admin bisa semua RS) ---
+    socket.on('hospital:callNext', ({ hospitalId, unit } = {}) => {
       const user = getFreshUser();
-      if (!requireSocketRole(socket, ['petugas'])) return;
-      if (!user.hospitalId) {
-        socket.emit('error:permission', { message: 'Akun Anda belum ditugaskan ke rumah sakit.' });
+      if (!requireSocketRole(socket, ['petugas', 'dinkes'])) return;
+      const targetId = resolveManagedHospitalId(user, hospitalId);
+      if (!targetId) {
+        socket.emit('error:permission', { message: 'Pilih rumah sakit yang valid untuk dikelola.' });
         return;
       }
-      const res = engine.callNextPatient(user.hospitalId, unit === 'poli' ? 'poli' : 'igd');
+      const res = engine.callNextPatient(targetId, unit === 'poli' ? 'poli' : 'igd');
       if (res.error) {
         socket.emit('error:permission', { message: res.error });
         return;
       }
       io.emit('world:tick', engine.getTickPayload());
-      emitHospitalDetailToSocket(user.hospitalId);
+      emitHospitalDetailToSocket(targetId);
       broadcastWargaQueues();
     });
 
-    socket.on('hospital:discharge', ({ patientCode } = {}) => {
+    socket.on('hospital:discharge', ({ hospitalId, patientCode } = {}) => {
       const user = getFreshUser();
-      if (!requireSocketRole(socket, ['petugas'])) return;
-      if (!user.hospitalId) return;
-      const res = engine.dischargePatient(user.hospitalId, patientCode);
+      if (!requireSocketRole(socket, ['petugas', 'dinkes'])) return;
+      const targetId = resolveManagedHospitalId(user, hospitalId);
+      if (!targetId) return;
+      const res = engine.dischargePatient(targetId, patientCode);
       if (res.error) {
         socket.emit('error:permission', { message: res.error });
         return;
       }
       io.emit('world:tick', engine.getTickPayload());
-      emitHospitalDetailToSocket(user.hospitalId);
+      emitHospitalDetailToSocket(targetId);
       broadcastWargaQueues();
     });
 
-    socket.on('hospital:setBeds', ({ unit, total } = {}) => {
+    socket.on('hospital:setBeds', ({ hospitalId, unit, total } = {}) => {
       const user = getFreshUser();
-      if (!requireSocketRole(socket, ['petugas'])) return;
-      if (!user.hospitalId) return;
-      const res = engine.setHospitalBeds(user.hospitalId, unit, total, {
+      if (!requireSocketRole(socket, ['petugas', 'dinkes'])) return;
+      const targetId = resolveManagedHospitalId(user, hospitalId);
+      if (!targetId) return;
+      const scopeKey = user.role === 'dinkes' ? 'dinkes' : `petugas:${user.uid}`;
+      const res = engine.setHospitalBeds(targetId, unit, total, {
         recordUndo: true,
-        scopeKey: `petugas:${user.uid}`,
+        scopeKey,
       });
       if (res.error) {
         socket.emit('error:permission', { message: res.error });
         return;
       }
       io.emit('world:tick', engine.getTickPayload());
-      emitHospitalDetailToSocket(user.hospitalId);
+      emitHospitalDetailToSocket(targetId);
     });
 
-    socket.on('patient:referManual', ({ patientCode, toHospitalId } = {}) => {
+    socket.on('patient:referManual', ({ hospitalId, patientCode, toHospitalId } = {}) => {
       const user = getFreshUser();
-      if (!requireSocketRole(socket, ['petugas'])) return;
-      if (!user.hospitalId) return;
-      const res = engine.referPatientManual(user.hospitalId, patientCode, toHospitalId, {
+      if (!requireSocketRole(socket, ['petugas', 'dinkes'])) return;
+      const targetId = resolveManagedHospitalId(user, hospitalId);
+      if (!targetId) return;
+      const scopeKey = user.role === 'dinkes' ? 'dinkes' : `petugas:${user.uid}`;
+      const res = engine.referPatientManual(targetId, patientCode, toHospitalId, {
         recordUndo: true,
-        scopeKey: `petugas:${user.uid}`,
+        scopeKey,
       });
       if (res.error) {
         socket.emit('error:permission', { message: res.error });
         return;
       }
       io.emit('world:tick', engine.getTickPayload());
-      emitHospitalDetailToSocket(user.hospitalId);
+      emitHospitalDetailToSocket(targetId);
       broadcastWargaQueues();
+    });
+
+    socket.on('hospital:addIgdPatient', ({ hospitalId, triage } = {}) => {
+      const user = getFreshUser();
+      if (!requireSocketRole(socket, ['petugas', 'dinkes'])) return;
+      const targetId = resolveManagedHospitalId(user, hospitalId);
+      if (!targetId) return;
+      const res = engine.addManualIgdPatient(targetId, triage);
+      if (res.error) {
+        socket.emit('error:permission', { message: res.error });
+        return;
+      }
+      io.emit('world:tick', engine.getTickPayload());
+      emitHospitalDetailToSocket(targetId);
     });
 
     // --- Perintah khusus Warga ---

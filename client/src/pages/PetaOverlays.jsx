@@ -43,6 +43,8 @@ export function PetaOverlays({
   speed,
   simTime,
   simTimeText,
+  dynamicAtmosphere = true,
+  onToggleAtmosphere,
   onTogglePause,
   onChangeSpeed,
   onZoomIn,
@@ -476,6 +478,8 @@ export function PetaOverlays({
           simTime={simTime}
           simTimeText={simTimeText}
           canControl={isDinkes && connected}
+          dynamicAtmosphere={dynamicAtmosphere}
+          onToggleAtmosphere={onToggleAtmosphere}
           onTogglePause={onTogglePause}
           onChangeSpeed={onChangeSpeed}
         />

@@ -20,6 +20,8 @@ export function TimeControl({
   simTime = 360,
   simTimeText = 'Hari 1, 06.00',
   canControl = true,
+  dynamicAtmosphere = true,
+  onToggleAtmosphere,
   onTogglePause,
   onChangeSpeed,
 }) {
@@ -121,6 +123,29 @@ export function TimeControl({
         <PhaseIcon size={15} strokeWidth={1.85} style={{ color: phaseColor }} aria-hidden="true" />
         <span>{simTimeText}</span>
       </span>
+
+      {onToggleAtmosphere && (
+        <>
+          <div className="h-5 w-px" style={{ backgroundColor: 'var(--border)' }} aria-hidden="true" />
+          <button
+            type="button"
+            onClick={onToggleAtmosphere}
+            title={
+              dynamicAtmosphere
+                ? 'Suasana peta mengikuti jam simulasi (klik untuk selalu terang)'
+                : 'Peta selalu terang (klik untuk ikuti suasana pagi/sore/malam)'
+            }
+            style={{
+              borderRadius: 'var(--radius-pill)',
+              backgroundColor: dynamicAtmosphere ? 'var(--accent-soft)' : 'var(--surface-2)',
+              color: dynamicAtmosphere ? 'var(--accent-ink)' : 'var(--text-muted)',
+            }}
+            className="focus-ring h-8 cursor-pointer px-2.5 text-[12px] font-semibold whitespace-nowrap hover:opacity-90"
+          >
+            {dynamicAtmosphere ? phaseLabel.split(' ')[0] : 'Terang'}
+          </button>
+        </>
+      )}
     </div>
   );
 }

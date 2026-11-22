@@ -17,6 +17,19 @@ const MIN_ZOOM = 0.8;
 const MAX_ZOOM = 2.5;
 
 /**
+ * Menghitung lapisan suasana warna peta berdasarkan jam simulasi (Pagi / Siang / Sore / Malam).
+ * Kartu UI putih tetap terang & terbaca jelas; hanya suasana peta yang bertransisi halus.
+ */
+function getAtmosphereTint(simTime = 360, enabled = true) {
+  if (!enabled) return 'rgba(0, 0, 0, 0)';
+  const hour = Math.floor((((simTime % 1440) + 1440) % 1440) / 60);
+  if (hour >= 5 && hour <= 9) return 'rgba(254, 243, 199, 0.06)';   // Pagi segar
+  if (hour >= 10 && hour <= 15) return 'rgba(0, 0, 0, 0)';          // Siang cerah
+  if (hour >= 16 && hour <= 18) return 'rgba(251, 146, 60, 0.15)';  // Sore keemasan
+  return 'rgba(15, 23, 42, 0.34)';                                  // Malam tenang
+}
+
+/**
  * Kanvas peta interaktif 2 kota (viewBox 1600x900).
  * Pan dan zoom memakai CSS transform translate3d + scale agar tetap 60 fps.
  */
@@ -31,6 +44,8 @@ export const MapCanvas = forwardRef(function MapCanvas(
     walkinsRef,
     ambulancesRef,
     paused = false,
+    simTime = 360,
+    dynamicAtmosphere = true,
     canToggleBridge = false,
     onToggleBridge,
     onSelectHospital,
@@ -234,12 +249,24 @@ export const MapCanvas = forwardRef(function MapCanvas(
           />
         </svg>
 
-        {/* Lapisan 3: Canvas overlay 60 fps (rute rujukan, pasien NPC, ambulans) */}
+        {/* Lapisan 3: Canvas overlay 60 fps (rute rujukan, pasien NPC, ambulans, lampu malam) */}
         <MapOverlayCanvas
           nodes={nodes}
           walkinsRef={walkinsRef}
           ambulancesRef={ambulancesRef}
           paused={paused}
+          simTime={simTime}
+          dynamicAtmosphere={dynamicAtmosphere}
+        />
+
+        {/* Lapisan 3b: Tint suasana waktu 24 jam (Pagi / Siang / Sore / Malam) */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundColor: getAtmosphereTint(simTime, dynamicAtmosphere),
+            transition: 'background-color 1500ms var(--ease)',
+          }}
         />
 
         {/* Lapisan 4: Marker 6 rumah sakit (selalu paling atas) */}

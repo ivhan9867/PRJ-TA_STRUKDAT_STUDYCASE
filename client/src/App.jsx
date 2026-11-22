@@ -39,6 +39,7 @@ export default function App() {
   });
   const [activePage, setActivePage] = useState('peta');
   const [searchQuery, setSearchQuery] = useState('');
+  const [managedHospitalId, setManagedHospitalId] = useState('rs_surya_utama');
 
   useEffect(() => {
     document.title = APP_NAME;
@@ -82,12 +83,23 @@ export default function App() {
           searchQuery={searchQuery}
           sim={sim}
           onNavigate={setActivePage}
+          onManageHospital={(rsId) => {
+            setManagedHospitalId(rsId);
+            setActivePage('rs_saya');
+          }}
         />
       );
     }
 
-    if (activePage === 'rs_saya' && auth.user.role === 'petugas') {
-      return <RsSayaPage user={auth.user} sim={sim} />;
+    if (activePage === 'rs_saya' && (auth.user.role === 'petugas' || auth.user.role === 'dinkes')) {
+      return (
+        <RsSayaPage
+          user={auth.user}
+          sim={sim}
+          selectedHospitalId={managedHospitalId}
+          onSelectHospitalId={setManagedHospitalId}
+        />
+      );
     }
 
     if (activePage === 'antrean' && auth.user.role === 'warga') {
@@ -147,6 +159,7 @@ export default function App() {
       }}
       searchQuery={searchQuery}
       onSearchChange={setSearchQuery}
+      onSwitchDemoRole={(demoEmail) => auth.login(demoEmail, 'demo1234')}
       onLogout={auth.logout}
     >
       {/* Banner tipis saat server tidak terhubung (02_UI_SPEC.md bagian 9) */}

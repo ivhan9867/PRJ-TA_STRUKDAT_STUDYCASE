@@ -25,10 +25,17 @@ const MENU_BY_ROLE = {
   ],
   dinkes: [
     { id: 'peta', label: 'Peta', icon: MapIcon },
+    { id: 'rs_saya', label: 'Kelola RS', icon: Building2 },
     { id: 'analitik', label: 'Analitik', icon: BarChart3 },
     { id: 'pengguna', label: 'Pengguna', icon: Users },
   ],
 };
+
+const DEMO_ROLE_SHORTCUTS = [
+  { label: 'Dinkes (Super Admin)', email: 'dinkes@simpulsehat.demo' },
+  { label: 'Petugas RS Surya', email: 'petugas.surya@simpulsehat.demo' },
+  { label: 'Warga', email: 'warga@simpulsehat.demo' },
+];
 
 /**
  * Kerangka umum semua halaman setelah login (02_UI_SPEC.md bagian 1).
@@ -41,6 +48,7 @@ export function AppShell({
   onNavigate,
   searchQuery,
   onSearchChange,
+  onSwitchDemoRole,
   onLogout,
   children,
 }) {
@@ -192,6 +200,32 @@ export function AppShell({
                   <FlaskConical size={16} strokeWidth={1.75} style={{ color: 'var(--accent)' }} />
                   <span>Mode Akademik</span>
                 </button>
+
+                {onSwitchDemoRole && (
+                  <div className="my-1 border-t pt-1.5" style={{ borderColor: 'var(--border)' }}>
+                    <div className="type-caption px-3 pb-1">Pindah peran cepat (demo)</div>
+                    {DEMO_ROLE_SHORTCUTS.map((item) => (
+                      <button
+                        key={item.email}
+                        type="button"
+                        disabled={user.email === item.email}
+                        onClick={() => {
+                          setProfileOpen(false);
+                          onSwitchDemoRole(item.email);
+                        }}
+                        style={{
+                          borderRadius: '10px',
+                          color: user.email === item.email ? 'var(--accent)' : 'var(--text-muted)',
+                        }}
+                        className="focus-ring flex w-full cursor-pointer items-center justify-between px-3 py-1.5 text-[12px] font-medium hover:bg-[var(--surface-2)] disabled:cursor-default"
+                      >
+                        <span>{item.label}</span>
+                        {user.email === item.email && <span className="text-[11px]">Aktif</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {

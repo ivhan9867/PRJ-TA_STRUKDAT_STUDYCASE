@@ -14,9 +14,10 @@ const CITY_FOCUS = {
  * Halaman Peta (halaman utama semua peran).
  * Terhubung langsung ke mesin simulasi server lewat Socket.IO.
  */
-export function PetaPage({ user, searchQuery, sim, onNavigate }) {
+export function PetaPage({ user, searchQuery, sim, onNavigate, onManageHospital }) {
   const mapRef = useRef(null);
   const statusTimerRef = useRef(null);
+  const [dynamicAtmosphere, setDynamicAtmosphere] = useState(true);
 
   const {
     connected,
@@ -147,6 +148,8 @@ export function PetaPage({ user, searchQuery, sim, onNavigate }) {
         walkinsRef={walkinsRef}
         ambulancesRef={ambulancesRef}
         paused={world.paused}
+        simTime={world.simTime}
+        dynamicAtmosphere={dynamicAtmosphere}
         canToggleBridge={user.role === 'dinkes' && connected}
         onToggleBridge={handleToggleBridge}
         onSelectHospital={handleSelectHospital}
@@ -168,6 +171,8 @@ export function PetaPage({ user, searchQuery, sim, onNavigate }) {
           onNavigate?.('antrean');
         }}
         onGoToRsSaya={() => onNavigate?.('rs_saya')}
+        onManageHospital={(rsId) => onManageHospital?.(rsId)}
+        onTriggerCasualtyHere={(rsId) => triggerScenario('kecelakaan', { hospitalId: rsId })}
         onChangeCityFilter={handleChangeCityFilter}
         onSelectHospital={handleSelectHospital}
         onSelectPatient={requestPatientDetail}
@@ -202,6 +207,8 @@ export function PetaPage({ user, searchQuery, sim, onNavigate }) {
         speed={world.speed}
         simTime={world.simTime}
         simTimeText={world.simTimeText}
+        dynamicAtmosphere={dynamicAtmosphere}
+        onToggleAtmosphere={() => setDynamicAtmosphere((v) => !v)}
         onTogglePause={() => sendControl(world.paused ? 'play' : 'pause')}
         onChangeSpeed={(s) => sendControl('speed', s)}
         onZoomIn={() => mapRef.current?.zoomIn()}

@@ -1509,6 +1509,27 @@ export class SimulationEngine {
     return { ok: true, travelMin, dispatchedImmediately };
   }
 
+  /**
+   * Menambahkan pasien IGD sintetis secara manual (oleh Petugas RS atau Dinkes Super Admin).
+   * Berguna untuk mendemokan langsung cara kerja PriorityQueue (Gawat langsung ke puncak).
+   */
+  addManualIgdPatient(hospitalId, triage = 'gawat') {
+    const rs = this.hospitals.get(hospitalId);
+    if (!rs) return { error: 'Rumah sakit tidak ditemukan.' };
+    const cleanTriage = ['gawat', 'sedang', 'ringan'].includes(triage) ? triage : 'sedang';
+
+    const patient = this._createPatient(cleanTriage, rs.id, 'igd');
+    rs.igdQueue.push(patient);
+    this._logEvent(
+      'pasien_manual',
+      cleanTriage === 'gawat' ? 'danger' : 'info',
+      rs.id,
+      `Pasien ${patient.code} (${TRIAGE_LABEL[cleanTriage]}) masuk antrean IGD ${rs.name}.`
+    );
+    this._syncTreeAndStatuses(true);
+    return { ok: true, patientCode: patient.code };
+  }
+
   // ==================== PAYLOAD SOCKET.IO ====================
 
   getBridgesState() {

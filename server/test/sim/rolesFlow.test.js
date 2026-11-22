@@ -93,3 +93,18 @@ test('Petugas RS dapat mengalihkan pasien IGD secara manual ke RS lain dan ambul
   assert.equal(dispatches[0].from, 'rs_tirta_raya');
   assert.equal(dispatches[0].to, 'rs_surya_utama');
 });
+
+test('Tambah pasien IGD manual: pasien Gawat langsung menyalip ke puncak PriorityQueue', () => {
+  const engine = new SimulationEngine(worldSeed, { seed: 59 });
+  const r1 = engine.addManualIgdPatient('rs_tirta_utara', 'ringan');
+  const r2 = engine.addManualIgdPatient('rs_tirta_utara', 'sedang');
+  const r3 = engine.addManualIgdPatient('rs_tirta_utara', 'gawat');
+
+  assert.equal(r1.ok, true);
+  assert.equal(r2.ok, true);
+  assert.equal(r3.ok, true);
+
+  const top = engine.hospitals.get('rs_tirta_utara').igdQueue.peek();
+  assert.equal(top.code, r3.patientCode);
+  assert.equal(top.triage, 'gawat');
+});

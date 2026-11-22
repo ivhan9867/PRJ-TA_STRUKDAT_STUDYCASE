@@ -268,21 +268,25 @@ export function useSimulationStore(token, { onProfileUpdated } = {}) {
     setSelectedPatientDetail(null);
   }, []);
 
-  // --- Aksi Petugas RS & Warga (Fase 6) ---
-  const callNextPatient = useCallback((unit) => {
-    socketRef.current?.emit('hospital:callNext', { unit });
+  // --- Aksi Petugas RS & Dinkes Super Admin & Warga ---
+  const callNextPatient = useCallback((unit, hospitalId) => {
+    socketRef.current?.emit('hospital:callNext', { unit, hospitalId });
   }, []);
 
-  const dischargePatient = useCallback((patientCode) => {
-    socketRef.current?.emit('hospital:discharge', { patientCode });
+  const dischargePatient = useCallback((patientCode, hospitalId) => {
+    socketRef.current?.emit('hospital:discharge', { patientCode, hospitalId });
   }, []);
 
-  const setHospitalBeds = useCallback((unit, total) => {
-    socketRef.current?.emit('hospital:setBeds', { unit, total });
+  const setHospitalBeds = useCallback((unit, total, hospitalId) => {
+    socketRef.current?.emit('hospital:setBeds', { unit, total, hospitalId });
   }, []);
 
-  const referPatientManual = useCallback((patientCode, toHospitalId) => {
-    socketRef.current?.emit('patient:referManual', { patientCode, toHospitalId });
+  const referPatientManual = useCallback((patientCode, toHospitalId, hospitalId) => {
+    socketRef.current?.emit('patient:referManual', { patientCode, toHospitalId, hospitalId });
+  }, []);
+
+  const addManualIgdPatient = useCallback((triage, hospitalId) => {
+    socketRef.current?.emit('hospital:addIgdPatient', { triage, hospitalId });
   }, []);
 
   const registerWarga = useCallback((hospitalId, unit) => {
@@ -318,6 +322,7 @@ export function useSimulationStore(token, { onProfileUpdated } = {}) {
     dischargePatient,
     setHospitalBeds,
     referPatientManual,
+    addManualIgdPatient,
     registerWarga,
     cancelWarga,
   };

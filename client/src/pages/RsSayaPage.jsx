@@ -8,6 +8,8 @@ import {
   Clock,
   CheckCircle2,
   Stethoscope,
+  UserPlus,
+  BedDouble,
 } from 'lucide-react';
 import {
   Card,
@@ -18,10 +20,11 @@ import {
 } from '../design/index.js';
 
 /**
- * Halaman RS saya (khusus Petugas RS, sesuai 02_UI_SPEC.md bagian 4).
- * Layout dua kolom di atas latar --surface-2.
+ * Halaman RS saya / Kelola RS.
+ * - Untuk Petugas RS: mengelola 1 rumah sakit yang ditugaskan (`user.hospitalId`).
+ * - Untuk Dinkes (Super Admin): dapat memilih dan mengelola seluruh 6 rumah sakit.
  */
-export function RsSayaPage({ user, sim }) {
+export function RsSayaPage({ user, sim, selectedHospitalId, onSelectHospitalId }) {
   const {
     connected,
     world,
@@ -31,22 +34,28 @@ export function RsSayaPage({ user, sim }) {
     dischargePatient,
     setHospitalBeds,
     referPatientManual,
+    addManualIgdPatient,
     undoLastAction,
   } = sim;
 
   const [referringCode, setReferringCode] = useState(null);
 
-  const hospital = world.hospitals.find((h) => h.id === user.hospitalId) || null;
-  const detail = user.hospitalId ? hospitalDetails[user.hospitalId] || null : null;
+  const isSuperAdmin = user.role === 'dinkes';
+  const activeHospitalId = isSuperAdmin
+    ? selectedHospitalId || world.hospitals[0]?.id || null
+    : user.hospitalId;
+
+  const hospital = world.hospitals.find((h) => h.id === activeHospitalId) || null;
+  const detail = activeHospitalId ? hospitalDetails[activeHospitalId] || null : null;
 
   useEffect(() => {
-    if (!user.hospitalId || !connected) return;
-    requestHospitalDetail(user.hospitalId);
-    const id = window.setInterval(() => requestHospitalDetail(user.hospitalId), 1000);
+    if (!activeHospitalId || !connected) return;
+    requestHospitalDetail(activeHospitalId);
+    const id = window.setInterval(() => requestHospitalDetail(activeHospitalId), 1000);
     return () => window.clearInterval(id);
-  }, [user.hospitalId, connected, requestHospitalDetail]);
+  }, [activeHospitalId, connected, requestHospitalDetail]);
 
-  if (!user.hospitalId || !hospital) {
+  if (!activeHospitalId || !hospital) {
     return (
       <div className="flex h-full items-center justify-center p-6">
         <Card className="w-full max-w-md">
@@ -64,6 +73,7 @@ export function RsSayaPage({ user, sim }) {
   const activeIgd = detail?.activeIgd || [];
   const activePoli = detail?.activePoli || [];
   const activeAll = [...activeIgd, ...activePoli];
+  const inpatients = detail?.inpatients || [];
   const events = detail?.events || [];
   const candidates = detail?.referralCandidates || [];
   const undoInfo = detail?.undoInfo || { canUndo: false, nextDescription: null };
@@ -79,15 +89,40 @@ export function RsSayaPage({ user, sim }) {
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="mx-auto max-w-6xl space-y-5">
-        {/* Header RS + Status + Undo */}
+        {/* Header RS + Selector Super Admin + Status + Undo */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="type-h1" style={{ color: 'var(--text)' }}>
-              {hospital.name}
-            </h1>
+            {isSuperAdmin ? (
+              <select
+                aria-label="Pilih rumah sakit yang dikelola"
+                value={activeHospitalId}
+                onChange={(e) => {
+                  setReferringCode(null);
+                  onSelectHospitalId?.(e.target.value);
+                }}
+                style={{
+                  backgroundColor: 'var(--surface)',
+                  border: '1.5px solid var(--accent)',
+                  borderRadius: 'var(--radius-inner)',
+                  color: 'var(--text)',
+                }}
+                className="font-display focus-ring h-11 px-3.5 text-[20px]"
+              >
+                {world.hospitals.map((rs) => (
+                  <option key={rs.id} value={rs.id}>
+                    {rs.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <h1 className="type-h1" style={{ color: 'var(--text)' }}>
+                {hospital.name}
+              </h1>
+            )}
             <StatusBadge status={hospital.status} />
             <span className="type-caption">
               Tipe {hospital.type}, Kota {hospital.city === 'surya' ? 'Surya' : 'Tirta'}
+              {isSuperAdmin ? ' (Kontrol penuh Dinkes)' : ''}
             </span>
           </div>
 
@@ -111,9 +146,9 @@ export function RsSayaPage({ user, sim }) {
         <div className="grid gap-5 lg:grid-cols-2">
           {/* ==================== KOLOM KIRI: ANTREAN IGD & POLI ==================== */}
           <div className="space-y-5">
-            {/* Antrean IGD */}
+            {/* Antrean IGD + Tambah pasien manual (demo PriorityQueue) */}
             <Card>
-              <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="type-h2" style={{ color: 'var(--text)' }}>
                   Antrean IGD ({igdQueue.length})
                 </h2>
@@ -122,8 +157,45 @@ export function RsSayaPage({ user, sim }) {
                 </span>
               </div>
 
+              {/* Tombol cepat tambah pasien IGD manual (membuktikan PriorityQueue) */}
+              <div
+                style={{ backgroundColor: 'var(--surface-2)', borderRadius: 'var(--radius-inner)' }}
+                className="mb-3 flex flex-wrap items-center justify-between gap-2 px-3 py-2"
+              >
+                <span className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: 'var(--text-muted)' }}>
+                  <UserPlus size={14} strokeWidth={1.75} />
+                  Tambah pasien IGD:
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    disabled={!connected}
+                    onClick={() => addManualIgdPatient('gawat', activeHospitalId)}
+                  >
+                    Gawat
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={!connected}
+                    onClick={() => addManualIgdPatient('sedang', activeHospitalId)}
+                  >
+                    Sedang
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={!connected}
+                    onClick={() => addManualIgdPatient('ringan', activeHospitalId)}
+                  >
+                    Ringan
+                  </Button>
+                </div>
+              </div>
+
               {igdQueue.length > 0 ? (
-                <div className="max-h-[340px] space-y-2 overflow-y-auto pr-1">
+                <div className="max-h-[320px] space-y-2 overflow-y-auto pr-1">
                   {igdQueue.map((p) => {
                     const isMenuOpen = referringCode === p.code;
                     return (
@@ -162,7 +234,6 @@ export function RsSayaPage({ user, sim }) {
                           </Button>
                         </div>
 
-                        {/* Daftar pilihan RS tujuan rujukan manual */}
                         {isMenuOpen && (
                           <div
                             className="mt-2.5 space-y-1.5 border-t pt-2.5"
@@ -176,7 +247,7 @@ export function RsSayaPage({ user, sim }) {
                                   type="button"
                                   disabled={!cand.reachable}
                                   onClick={() => {
-                                    referPatientManual(p.code, cand.id);
+                                    referPatientManual(p.code, cand.id, activeHospitalId);
                                     setReferringCode(null);
                                   }}
                                   style={{
@@ -212,7 +283,7 @@ export function RsSayaPage({ user, sim }) {
                 <Button
                   variant="primary"
                   disabled={!connected || igdQueue.length === 0 || igdDoctorsFull}
-                  onClick={() => callNextPatient('igd')}
+                  onClick={() => callNextPatient('igd', activeHospitalId)}
                 >
                   Panggil berikutnya
                 </Button>
@@ -273,7 +344,7 @@ export function RsSayaPage({ user, sim }) {
                 <Button
                   variant="primary"
                   disabled={!connected || poliQueue.length === 0 || poliDoctorsFull}
-                  onClick={() => callNextPatient('poli')}
+                  onClick={() => callNextPatient('poli', activeHospitalId)}
                 >
                   Panggil berikutnya
                 </Button>
@@ -286,7 +357,7 @@ export function RsSayaPage({ user, sim }) {
             </Card>
           </div>
 
-          {/* ==================== KOLOM KANAN: TEMPAT TIDUR, DILAYANI, KEJADIAN ==================== */}
+          {/* ==================== KOLOM KANAN: TEMPAT TIDUR, DILAYANI, RAWAT INAP, KEJADIAN ==================== */}
           <div className="space-y-5">
             {/* Kapasitas tempat tidur (- / + masuk Stack Undo) */}
             <Card>
@@ -300,7 +371,7 @@ export function RsSayaPage({ user, sim }) {
                   total={hospital.inap.total}
                   maxCap={maxInap}
                   disabled={!connected}
-                  onChange={(next) => setHospitalBeds('inap', next)}
+                  onChange={(next) => setHospitalBeds('inap', next, activeHospitalId)}
                 />
                 {baseIcu > 0 ? (
                   <BedCounterRow
@@ -309,7 +380,7 @@ export function RsSayaPage({ user, sim }) {
                     total={hospital.icu.total}
                     maxCap={maxIcu}
                     disabled={!connected}
-                    onChange={(next) => setHospitalBeds('icu', next)}
+                    onChange={(next) => setHospitalBeds('icu', next, activeHospitalId)}
                   />
                 ) : (
                   <div
@@ -323,7 +394,7 @@ export function RsSayaPage({ user, sim }) {
               </div>
             </Card>
 
-            {/* Sedang dilayani */}
+            {/* Sedang dilayani dokter IGD & Poli */}
             <Card>
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="type-h2" style={{ color: 'var(--text)' }}>
@@ -333,7 +404,7 @@ export function RsSayaPage({ user, sim }) {
               </div>
 
               {activeAll.length > 0 ? (
-                <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1">
+                <div className="max-h-[220px] space-y-2 overflow-y-auto pr-1">
                   {activeAll.map((p) => (
                     <div
                       key={`${p.unit}_${p.code}`}
@@ -356,10 +427,10 @@ export function RsSayaPage({ user, sim }) {
                         variant="secondary"
                         size="sm"
                         disabled={!connected}
-                        onClick={() => dischargePatient(p.code)}
+                        onClick={() => dischargePatient(p.code, activeHospitalId)}
                       >
                         <CheckCircle2 size={14} strokeWidth={1.75} />
-                        Pulangkan pasien
+                        Pulangkan
                       </Button>
                     </div>
                   ))}
@@ -369,13 +440,67 @@ export function RsSayaPage({ user, sim }) {
               )}
             </Card>
 
+            {/* Pasien dirawat inap & ICU (bisa dipulangkan manual untuk bebaskan tempat tidur) */}
+            <Card>
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="type-h2" style={{ color: 'var(--text)' }}>
+                  Dirawat inap dan ICU ({inpatients.length} terbaru)
+                </h2>
+                <BedDouble size={18} strokeWidth={1.75} style={{ color: 'var(--accent)' }} />
+              </div>
+
+              {inpatients.length > 0 ? (
+                <div className="max-h-[220px] space-y-2 overflow-y-auto pr-1">
+                  {inpatients.map((p) => (
+                    <div
+                      key={p.code}
+                      style={{
+                        backgroundColor: 'var(--surface-2)',
+                        borderRadius: 'var(--radius-inner)',
+                      }}
+                      className="flex items-center justify-between gap-2 px-3.5 py-2.5"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="tabular-nums text-[14px] font-semibold">{p.code}</span>
+                          <span
+                            style={{
+                              borderRadius: 'var(--radius-pill)',
+                              backgroundColor: p.bedType === 'icu' ? 'var(--danger-soft)' : 'var(--accent-soft)',
+                              color: p.bedType === 'icu' ? 'var(--danger)' : 'var(--accent-ink)',
+                            }}
+                            className="px-2 py-0.5 text-[11px] font-semibold"
+                          >
+                            {p.bedType === 'icu' ? 'ICU' : 'Rawat inap'}
+                          </span>
+                        </div>
+                        <div className="type-caption truncate">
+                          {p.complaint} ({p.stayMin} menit)
+                        </div>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={!connected}
+                        onClick={() => dischargePatient(p.code, activeHospitalId)}
+                      >
+                        Pulangkan
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState message="Belum ada pasien rawat inap atau ICU." />
+              )}
+            </Card>
+
             {/* Kejadian terbaru (10) */}
             <Card>
               <h2 className="type-h2 mb-3" style={{ color: 'var(--text)' }}>
                 Kejadian terbaru
               </h2>
               {events.length > 0 ? (
-                <div className="max-h-[220px] space-y-2 overflow-y-auto pr-1">
+                <div className="max-h-[200px] space-y-2 overflow-y-auto pr-1">
                   {events.slice(0, 10).map((ev) => (
                     <div
                       key={ev.id}

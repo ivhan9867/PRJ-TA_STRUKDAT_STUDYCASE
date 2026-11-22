@@ -1,8 +1,22 @@
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { riverCenterX } from './cityDecor.js';
+import { generateCityHouses } from '@shared/cityHouses.js';
+import worldSeed from '@shared/world.seed.json';
 
 const WORLD_W = 1600;
 const WORLD_H = 900;
+
+/**
+ * Menghitung intensitas malam (0 = terang siang/pagi, 1 = malam penuh) dari simTime.
+ */
+function computeNightIntensity(simTime = 360) {
+  const mins = ((simTime % 1440) + 1440) % 1440;
+  const hour = mins / 60;
+  if (hour >= 19.5 || hour < 4.5) return 1;
+  if (hour >= 18 && hour < 19.5) return (hour - 18) / 1.5;
+  if (hour >= 4.5 && hour < 6) return 1 - (hour - 4.5) / 1.5;
+  return 0;
+}
 
 const TRIAGE_COLOR = {
   ringan: '#16A34A',
@@ -149,10 +163,15 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
   walkinsRef,
   ambulancesRef,
   paused,
+  simTime = 360,
+  dynamicAtmosphere = true,
 }) {
   const canvasRef = useRef(null);
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
+  const nightRef = useRef(0);
+  nightRef.current = dynamicAtmosphere ? computeNightIntensity(simTime) : 0;
+  const houses = useMemo(() => generateCityHouses(worldSeed.nodes, worldSeed.edges), []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -197,6 +216,22 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
             else ctx.lineTo(x, y);
           }
           ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // 0b. Lampu jendela rumah warga menyala hangat saat malam hari
+      const nightLevel = nightRef.current;
+      if (nightLevel > 0.12) {
+        ctx.save();
+        for (let i = 0; i < houses.length; i++) {
+          // Sekitar 75% rumah menyalakan lampu malam agar terlihat alami
+          if (i % 4 === 0) continue;
+          const h = houses[i];
+          ctx.fillStyle = `rgba(254, 240, 138, ${(0.72 * nightLevel).toFixed(2)})`;
+          ctx.beginPath();
+          ctx.arc(h.x, h.y + 1, 2.3, 0, Math.PI * 2);
+          ctx.fill();
         }
         ctx.restore();
       }
@@ -374,6 +409,21 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
           ctx.save();
           ctx.translate(pos.x, pos.y);
           ctx.rotate(pos.angle);
+
+          // Sorot lampu depan (headlight cone) ambulans saat malam hari
+          if (nightLevel > 0.15) {
+            const grad = ctx.createRadialGradient(14, 0, 2, 34, 0, 34);
+            grad.addColorStop(0, `rgba(254, 249, 195, ${(0.45 * nightLevel).toFixed(2)})`);
+            grad.addColorStop(1, 'rgba(254, 249, 195, 0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.moveTo(13, -4);
+            ctx.lineTo(48, -18);
+            ctx.lineTo(48, 18);
+            ctx.lineTo(13, 4);
+            ctx.closePath();
+            ctx.fill();
+          }
 
           // Bayangan lembut
           ctx.fillStyle = 'rgba(15, 23, 42, 0.18)';

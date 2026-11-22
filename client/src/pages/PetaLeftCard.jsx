@@ -40,6 +40,8 @@ export function PetaLeftCard({
   hasActiveQueue = false,
   onRegisterWarga,
   onGoToRsSaya,
+  onManageHospital,
+  onTriggerCasualtyHere,
   onChangeCityFilter,
   onSelectHospital,
   onSelectPatient,
@@ -342,6 +344,25 @@ export function PetaLeftCard({
                     <Button variant="primary" className="w-full" onClick={() => onGoToRsSaya?.()}>
                       Kelola di RS saya
                     </Button>
+                  )}
+                  {user.role === 'dinkes' && (
+                    <div className="space-y-2">
+                      <Button
+                        variant="primary"
+                        className="w-full"
+                        onClick={() => onManageHospital?.(selectedHospital.id)}
+                      >
+                        Kelola rumah sakit ini
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => onTriggerCasualtyHere?.(selectedHospital.id)}
+                      >
+                        Picu kecelakaan massal di sini
+                      </Button>
+                    </div>
                   )}
                 </div>
               )}
