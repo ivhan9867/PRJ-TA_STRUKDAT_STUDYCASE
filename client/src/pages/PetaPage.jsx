@@ -28,6 +28,7 @@ export function PetaPage({ user, searchQuery, sim, onNavigate, onManageHospital 
     dismissToast,
     walkinsRef,
     ambulancesRef,
+    helpCallsRef,
     sendControl,
     setBridge,
     setAutoReferral,
@@ -147,6 +148,7 @@ export function PetaPage({ user, searchQuery, sim, onNavigate, onManageHospital 
         highlightedHospitalIds={highlightedHospitalIds}
         walkinsRef={walkinsRef}
         ambulancesRef={ambulancesRef}
+        helpCallsRef={helpCallsRef}
         paused={world.paused}
         simTime={world.simTime}
         dynamicAtmosphere={dynamicAtmosphere}

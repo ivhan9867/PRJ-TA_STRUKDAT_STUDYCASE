@@ -8,6 +8,7 @@ export const IS_STATIC_MODE = import.meta.env.VITE_STATIC_MODE === 'true';
 
 const IMPORTANT_LOG_TYPES = new Set([
   'rujukan',
+  'bantuan_ambulans',
   'rs_penuh',
   'wabah',
   'kecelakaan',
@@ -45,6 +46,10 @@ export function getLocalEngine() {
         const msPerTick = 1000 / singletonEngine.speed;
         if (name === 'walkin:spawn') {
           emitLocal('walkin:spawn', { ...payload, durationMs: Math.max(900, Math.round(payload.travelMin * msPerTick)) });
+        } else if (name === 'ambulance:call_help') {
+          emitLocal('ambulance:call_help', payload);
+        } else if (name === 'ambulance:pickup') {
+          emitLocal('ambulance:pickup', { ...payload, durationMs: Math.max(1000, Math.round(payload.travelMin * msPerTick)) });
         } else if (name === 'ambulance:dispatch') {
           emitLocal('ambulance:dispatch', { ...payload, durationMs: Math.max(1200, Math.round(payload.travelMin * msPerTick)) });
         } else if (name === 'ambulance:return') {

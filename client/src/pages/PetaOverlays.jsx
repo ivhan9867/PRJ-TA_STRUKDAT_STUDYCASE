@@ -414,6 +414,13 @@ export function PetaOverlays({
               </div>
               <div className="flex items-center gap-2.5">
                 <span
+                  className="inline-block h-3.5 w-5 rounded-[4px]"
+                  style={{ backgroundColor: '#FEF3C7', border: '2px solid #D97706' }}
+                />
+                <span style={{ color: 'var(--text-muted)' }}>Ambulans bantuan (penjemput)</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <span
                   className="inline-block h-2.5 w-2.5 rounded-full"
                   style={{ backgroundColor: 'var(--danger)' }}
                 />
@@ -515,11 +522,34 @@ export function PetaOverlays({
                 }}
                 className="focus-ring block w-full cursor-pointer px-2.5 py-1.5 text-left hover:bg-[var(--accent-soft)]/50"
               >
-                <div className="flex items-center justify-between text-[12px]">
-                  <span className="tabular-nums font-semibold" style={{ color: 'var(--text)' }}>
-                    {refItem.patientCode}
+                <div className="flex items-center justify-between gap-1.5 text-[12px]">
+                  <span className="flex items-center gap-1.5">
+                    <span className="tabular-nums font-semibold" style={{ color: 'var(--text)' }}>
+                      {refItem.patientCode}
+                    </span>
+                    {refItem.isAssist && (
+                      <span
+                        style={{
+                          backgroundColor: refItem.assistStage === 'pickup' ? 'var(--warn-soft)' : '#ECFEFF',
+                          color: refItem.assistStage === 'pickup' ? 'var(--warn)' : '#0E7490',
+                          borderRadius: '999px',
+                        }}
+                        className="px-1.5 py-0.2 text-[10px] font-semibold"
+                      >
+                        {refItem.assistStage === 'pickup' ? 'Jemput' : 'Bantuan'}
+                      </span>
+                    )}
                   </span>
-                  <span className="tabular-nums font-semibold" style={{ color: 'var(--accent)' }}>
+                  <span
+                    className="tabular-nums font-semibold"
+                    style={{
+                      color: refItem.isAssist
+                        ? refItem.assistStage === 'pickup'
+                          ? 'var(--warn)'
+                          : '#0E7490'
+                        : 'var(--accent)',
+                    }}
+                  >
                     ±{refItem.remainMin} mnt
                   </span>
                 </div>

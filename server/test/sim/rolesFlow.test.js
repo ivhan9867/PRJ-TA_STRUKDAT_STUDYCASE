@@ -118,7 +118,10 @@ test('Atur armada ambulans: menambah ambulans langsung memberangkatkan antrean r
     },
   });
 
-  // RS Tirta Utara awalnya punya 1 ambulans; buat 2 rujukan manual -> 1 berangkat, 1 antre di ambRequestQueue
+  // RS Tirta Utara punya 1 ambulans; kosongkan sementara armada RS Tirta Raya agar benar-benar uji Queue fallback
+  const destRs = engine.hospitals.get('rs_tirta_raya');
+  while (!destRs.freeAmbulances.isEmpty()) destRs.freeAmbulances.removeFirst();
+
   const p1 = engine.addManualIgdPatient('rs_tirta_utara', 'gawat');
   const p2 = engine.addManualIgdPatient('rs_tirta_utara', 'gawat');
   engine.referPatientManual('rs_tirta_utara', p1.patientCode, 'rs_tirta_raya', { recordUndo: false });
@@ -136,4 +139,48 @@ test('Atur armada ambulans: menambah ambulans langsung memberangkatkan antrean r
   // Undo mengembalikan kapasitas armada ke 1
   engine.undoLastAction('dinkes');
   assert.equal(engine.hospitals.get('rs_tirta_utara').ambulancesTotal, 1);
+});
+
+test('Ambulans bantuan: saat ambulans RS asal habis, RS tujuan mengirim unit penjemput 2 tahap lalu kembali siaga', () => {
+  const calls = [];
+  const pickups = [];
+  const assistDispatches = [];
+  const assistArrivals = [];
+
+  const engine = new SimulationEngine(worldSeed, {
+    seed: 61,
+    onEvent: (name, payload) => {
+      if (name === 'ambulance:call_help') calls.push(payload);
+      if (name === 'ambulance:pickup') pickups.push(payload);
+      if (name === 'ambulance:dispatch' && payload.isAssist) assistDispatches.push(payload);
+      if (name === 'ambulance:arrive' && payload.isAssist) assistArrivals.push(payload);
+    },
+  });
+
+  const helperInitialFree = engine.hospitals.get('rs_tirta_raya').freeAmbulances.size();
+  const p1 = engine.addManualIgdPatient('rs_tirta_utara', 'gawat');
+  const p2 = engine.addManualIgdPatient('rs_tirta_utara', 'gawat');
+
+  // Pasien 1 memakai 1-satunya ambulans RS Tirta Utara
+  engine.referPatientManual('rs_tirta_utara', p1.patientCode, 'rs_tirta_raya', { recordUndo: false });
+  // Pasien 2 memicu panggilan bantuan ke RS Tirta Raya
+  engine.referPatientManual('rs_tirta_utara', p2.patientCode, 'rs_tirta_raya', { recordUndo: false });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].from, 'rs_tirta_utara');
+  assert.equal(calls[0].to, 'rs_tirta_raya');
+  assert.equal(pickups.length, 1);
+  assert.equal(pickups[0].isAssist, true);
+  assert.equal(engine.hospitals.get('rs_tirta_raya').freeAmbulances.size(), helperInitialFree - 1);
+
+  // Jalankan simulasi cukup lama hingga fase jemput + fase angkut selesai
+  for (let i = 0; i < 40; i++) {
+    engine.step();
+  }
+
+  assert.equal(assistDispatches.length, 1);
+  assert.equal(assistArrivals.length, 1);
+  assert.equal(assistArrivals[0].hospitalId, 'rs_tirta_raya');
+  // Unit bantuan langsung kembali siaga di RS Tirta Raya
+  assert.ok(engine.hospitals.get('rs_tirta_raya').freeAmbulances.size() >= helperInitialFree);
 });

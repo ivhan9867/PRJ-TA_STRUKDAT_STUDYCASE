@@ -74,6 +74,7 @@ export function useSimulationStore(token, { onProfileUpdated } = {}) {
   const socketRef = useRef(null);
   const walkinsRef = useRef(new Map());
   const ambulancesRef = useRef(new Map());
+  const helpCallsRef = useRef(new Map());
   const toastTimersRef = useRef(new Map());
 
   const pushToast = useCallback((entry) => {
@@ -147,6 +148,10 @@ export function useSimulationStore(token, { onProfileUpdated } = {}) {
             if (oldestKey) map.delete(oldestKey);
           }
           map.set(payload.id, { ...payload, startWallMs: performance.now() });
+        } else if (event === 'ambulance:call_help') {
+          helpCallsRef.current.set(payload.id, { ...payload, durationMs: 2400 });
+        } else if (event === 'ambulance:pickup') {
+          ambulancesRef.current.set(payload.id, { ...payload, phase: 'pickup', isAssist: true, startWallMs: performance.now() });
         } else if (event === 'ambulance:dispatch') {
           ambulancesRef.current.set(payload.id, { ...payload, phase: 'dispatch', startWallMs: performance.now() });
         } else if (event === 'ambulance:return') {
@@ -183,6 +188,7 @@ export function useSimulationStore(token, { onProfileUpdated } = {}) {
     socket.on('world:init', (payload) => {
       walkinsRef.current.clear();
       ambulancesRef.current.clear();
+      helpCallsRef.current.clear();
       setHospitalDetails({});
       setSelectedPatientDetail(null);
       setWorld((prev) => ({
@@ -225,6 +231,22 @@ export function useSimulationStore(token, { onProfileUpdated } = {}) {
       }
       map.set(ev.id, {
         ...ev,
+        startWallMs: performance.now(),
+      });
+    });
+
+    socket.on('ambulance:call_help', (ev) => {
+      helpCallsRef.current.set(ev.id, {
+        ...ev,
+        durationMs: 2400,
+      });
+    });
+
+    socket.on('ambulance:pickup', (ev) => {
+      ambulancesRef.current.set(ev.id, {
+        ...ev,
+        phase: 'pickup',
+        isAssist: true,
         startWallMs: performance.now(),
       });
     });
@@ -290,6 +312,7 @@ export function useSimulationStore(token, { onProfileUpdated } = {}) {
       toastTimersRef.current.clear();
       walkinsRef.current.clear();
       ambulancesRef.current.clear();
+      helpCallsRef.current.clear();
     };
   }, [token, pushToast]);
 
@@ -346,6 +369,7 @@ export function useSimulationStore(token, { onProfileUpdated } = {}) {
       engine.reset();
       walkinsRef.current.clear();
       ambulancesRef.current.clear();
+      helpCallsRef.current.clear();
       setHospitalDetails({});
       setSelectedPatientDetail(null);
       setWorld((prev) => ({ ...prev, ...engine.getInitPayload() }));
@@ -489,6 +513,7 @@ export function useSimulationStore(token, { onProfileUpdated } = {}) {
     dismissToast,
     walkinsRef,
     ambulancesRef,
+    helpCallsRef,
     sendControl,
     setBridge,
     setAutoReferral,

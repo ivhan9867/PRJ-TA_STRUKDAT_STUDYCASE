@@ -264,6 +264,7 @@ const io = new SocketIOServer(server, {
 
 const IMPORTANT_LOG_TYPES = new Set([
   'rujukan',
+  'bantuan_ambulans',
   'rs_penuh',
   'wabah',
   'kecelakaan',
@@ -282,6 +283,19 @@ const engine = new SimulationEngine(worldSeed, {
       io.emit('walkin:spawn', {
         ...payload,
         durationMs: Math.max(900, Math.round(payload.travelMin * msPerTick)),
+      });
+      return;
+    }
+
+    if (name === 'ambulance:call_help') {
+      io.emit('ambulance:call_help', payload);
+      return;
+    }
+
+    if (name === 'ambulance:pickup') {
+      io.emit('ambulance:pickup', {
+        ...payload,
+        durationMs: Math.max(1000, Math.round(payload.travelMin * msPerTick)),
       });
       return;
     }

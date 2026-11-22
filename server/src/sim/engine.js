@@ -52,6 +52,7 @@ const STAGE_LABEL = {
   terdaftar: 'Tiba dan terdaftar',
   layanan_igd: 'Ditangani dokter IGD',
   layanan_poli: 'Ditangani dokter Poli',
+  minta_bantuan: 'Menunggu jemputan ambulans bantuan',
   dirujuk: 'Dirujuk dengan ambulans',
   tiba_rujukan: 'Tiba di RS rujukan',
   rawat_inap: 'Dirawat inap',
@@ -488,8 +489,86 @@ export class SimulationEngine {
         break;
       }
 
+      case 'amb_pickup_arrive': {
+        const { ambulance, dispatchId, patient, fromHospitalId, toHospitalId, pickupEdges, neededUnit, pickupMin } =
+          ev.payload;
+        this._updateEdgeTraffic(pickupEdges, -1);
+
+        const fromRs = this.hospitals.get(fromHospitalId);
+        const destRs = this.hospitals.get(toHospitalId);
+        if (!fromRs || !destRs) return;
+
+        // Hitung rute angkut terbaru dari RS asal -> RS tujuan (bantuan)
+        let transportRoute = this.graph.dijkstra(fromHospitalId, toHospitalId, (e) =>
+          this._edgeWeight(e)
+        );
+        if (!transportRoute.found) {
+          transportRoute = {
+            found: true,
+            path: [...ev.payload.pickupPath].reverse(),
+            edges: [...pickupEdges].reverse(),
+            distance: ev.payload.pickupDist,
+          };
+        }
+
+        // Ambulans bantuan sedikit lebih sigap saat angkut (1.15x)
+        const transportMin = Math.max(2, Math.round(transportRoute.distance / 1.15));
+        ambulance.status = 'mengantar';
+        this._updateEdgeTraffic(transportRoute.edges, +1);
+        this.metrics.recordReferral((pickupMin || 0) + transportMin);
+
+        patient.journey.append({
+          stage: 'dirujuk',
+          hospitalId: fromHospitalId,
+          toHospitalId,
+          enteredAt: this.simTime,
+          exitedAt: this.simTime + transportMin,
+        });
+
+        this.activeReferrals.set(dispatchId, {
+          id: dispatchId,
+          patientCode: patient.code,
+          triage: patient.triage,
+          fromId: fromRs.id,
+          fromName: fromRs.name,
+          toId: destRs.id,
+          toName: destRs.name,
+          travelMin: transportMin,
+          etaSimTime: this.simTime + transportMin,
+          isAssist: true,
+          assistStage: 'transport',
+        });
+
+        this._emit('ambulance:dispatch', {
+          id: `${dispatchId}_tr`,
+          ambulanceId: ambulance.id,
+          from: fromHospitalId,
+          to: toHospitalId,
+          path: transportRoute.path,
+          travelMin: transportMin,
+          triage: patient.triage,
+          patientCode: patient.code,
+          isAssist: true,
+        });
+
+        this._schedule(this.simTime + transportMin, 'amb_arrive_dest', {
+          ambulance,
+          dispatchId,
+          patient,
+          fromHospitalId,
+          toHospitalId,
+          homeHospitalId: toHospitalId,
+          isAssist: true,
+          routePath: transportRoute.path,
+          routeEdges: transportRoute.edges,
+          travelMin: transportMin,
+          neededUnit,
+        });
+        break;
+      }
+
       case 'amb_arrive_dest': {
-        const { ambulance, dispatchId, patient, fromHospitalId, toHospitalId, routeEdges, neededUnit } =
+        const { ambulance, dispatchId, patient, fromHospitalId, toHospitalId, routeEdges, neededUnit, isAssist, homeHospitalId } =
           ev.payload;
         if (dispatchId) this.activeReferrals.delete(dispatchId);
         this._updateEdgeTraffic(routeEdges, -1);
@@ -500,12 +579,15 @@ export class SimulationEngine {
             id: ambulance.id,
             hospitalId: toHospitalId,
             patientCode: patient.code,
+            isAssist: Boolean(isAssist),
           });
           this._logEvent(
             'ambulans_tiba',
             'info',
             toHospitalId,
-            `Ambulans tiba di ${destRs.name}. Pasien masuk antrean IGD.`
+            isAssist
+              ? `Ambulans bantuan tiba di ${destRs.name}. Pasien langsung ditangani.`
+              : `Ambulans tiba di ${destRs.name}. Pasien masuk antrean IGD.`
           );
 
           patient.currentHospitalId = toHospitalId;
@@ -528,7 +610,17 @@ export class SimulationEngine {
           }
         }
 
-        // Ambulans kembali ke RS asal (ikuti rute Dijkstra jika ada, atau balik jalur semula)
+        // Jika ambulans bantuan berasal dari RS tujuan, unit sudah kembali di markasnya
+        if (isAssist && homeHospitalId === toHospitalId && destRs) {
+          if (destRs.freeAmbulances.size() < destRs.ambulancesTotal) {
+            ambulance.status = 'siaga';
+            destRs.freeAmbulances.append(ambulance);
+            this._dispatchPendingAmbulanceRequests(destRs);
+          }
+          break;
+        }
+
+        // Ambulans reguler kembali ke RS asal (ikuti rute Dijkstra jika ada, atau balik jalur semula)
         let returnRoute = this.graph.dijkstra(toHospitalId, fromHospitalId, (e) =>
           this._edgeWeight(e)
         );
@@ -850,6 +942,12 @@ export class SimulationEngine {
 
     if (!fromRs.freeAmbulances.isEmpty()) {
       this._dispatchAmbulance(fromRs, request);
+    } else if (!target.hospital.freeAmbulances.isEmpty()) {
+      // Ambulans RS asal habis -> panggil ambulans bantuan (unit penjemput) dari RS tujuan
+      const assisted = this._dispatchAssistAmbulance(fromRs, target.hospital, request);
+      if (!assisted) {
+        fromRs.ambRequestQueue.enqueue(request);
+      }
     } else {
       // Semua ambulans sedang bertugas -> masuk Queue FIFO permintaan ambulans
       fromRs.ambRequestQueue.enqueue(request);
@@ -947,6 +1045,90 @@ export class SimulationEngine {
       travelMin: req.travelMin,
       neededUnit: req.neededUnit,
     });
+  }
+
+  /**
+   * Mengirim ambulans bantuan (unit penjemput) dari RS tujuan ketika armada RS asal habis.
+   * Menempuh 2 tahap Dijkstra: Jemput (1.25x lebih cepat) lalu Angkut kembali ke RS tujuan.
+   */
+  _dispatchAssistAmbulance(fromRs, helperRs, req) {
+    const pickupRoute = this.graph.dijkstra(helperRs.id, fromRs.id, (e) => this._edgeWeight(e));
+    if (!pickupRoute.found) return false;
+
+    const ambulance = helperRs.freeAmbulances.removeFirst();
+    if (!ambulance) return false;
+
+    // Unit penjemput bergerak 1.25x lebih cepat saat kosong menuju RS asal
+    const pickupMin = Math.max(2, Math.round(pickupRoute.distance / 1.25));
+    const dispatchId = `assist_${ambulance.id}_${++this.ambulanceSeq}`;
+    ambulance.status = 'menjemput';
+    this._updateEdgeTraffic(pickupRoute.edges, +1);
+
+    req.patient.journey.append({
+      stage: 'minta_bantuan',
+      hospitalId: fromRs.id,
+      toHospitalId: helperRs.id,
+      enteredAt: this.simTime,
+      exitedAt: this.simTime + pickupMin,
+    });
+
+    this._logEvent(
+      'bantuan_ambulans',
+      'warn',
+      fromRs.id,
+      `Ambulans ${fromRs.name} penuh — ${helperRs.name} mengirim ambulans bantuan (jemput ±${pickupMin} mnt).`
+    );
+
+    this.activeReferrals.set(dispatchId, {
+      id: dispatchId,
+      patientCode: req.patient.code,
+      triage: req.patient.triage,
+      fromId: fromRs.id,
+      fromName: fromRs.name,
+      toId: helperRs.id,
+      toName: helperRs.name,
+      travelMin: pickupMin,
+      etaSimTime: this.simTime + pickupMin,
+      isAssist: true,
+      assistStage: 'pickup',
+    });
+
+    this._emit('ambulance:call_help', {
+      id: `call_${dispatchId}`,
+      from: fromRs.id,
+      to: helperRs.id,
+      fromName: fromRs.name,
+      toName: helperRs.name,
+      patientCode: req.patient.code,
+      pickupMin,
+    });
+
+    this._emit('ambulance:pickup', {
+      id: dispatchId,
+      ambulanceId: ambulance.id,
+      from: helperRs.id,
+      to: fromRs.id,
+      path: pickupRoute.path,
+      travelMin: pickupMin,
+      triage: req.patient.triage,
+      patientCode: req.patient.code,
+      isAssist: true,
+    });
+
+    this._schedule(this.simTime + pickupMin, 'amb_pickup_arrive', {
+      ambulance,
+      dispatchId,
+      patient: req.patient,
+      fromHospitalId: fromRs.id,
+      toHospitalId: helperRs.id,
+      pickupPath: pickupRoute.path,
+      pickupEdges: pickupRoute.edges,
+      pickupDist: pickupRoute.distance,
+      pickupMin,
+      neededUnit: req.neededUnit,
+    });
+
+    return true;
   }
 
   _updateEdgeTraffic(edgeIds, delta) {
@@ -1552,6 +1734,8 @@ export class SimulationEngine {
     let dispatchedImmediately = false;
     if (!fromRs.freeAmbulances.isEmpty()) {
       this._dispatchAmbulance(fromRs, req);
+      dispatchedImmediately = true;
+    } else if (!toRs.freeAmbulances.isEmpty() && this._dispatchAssistAmbulance(fromRs, toRs, req)) {
       dispatchedImmediately = true;
     } else {
       fromRs.ambRequestQueue.enqueue(req);

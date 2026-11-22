@@ -177,6 +177,7 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
   nodes,
   walkinsRef,
   ambulancesRef,
+  helpCallsRef,
   paused,
   simTime = 360,
   dynamicAtmosphere = true,
@@ -263,6 +264,100 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
 
       const ambulances = ambulancesRef?.current;
       const walkins = walkinsRef?.current;
+      const helpCalls = helpCallsRef?.current;
+
+      // 0b2. Animasi panggilan bantuan ambulans (dialing / sinyal radio antar-RS)
+      if (helpCalls && helpCalls.size > 0) {
+        for (const [callId, call] of helpCalls.entries()) {
+          if (call._startAnimMs === undefined) call._startAnimMs = animNow;
+          const t = (animNow - call._startAnimMs) / Math.max(call.durationMs || 2400, 1);
+          if (t >= 1) {
+            helpCalls.delete(callId);
+            continue;
+          }
+          const fromNode = nodeMap.get(call.from);
+          const toNode = nodeMap.get(call.to);
+          if (!fromNode || !toNode) continue;
+
+          const fadeAlpha = t < 0.12 ? t / 0.12 : t > 0.82 ? (1 - t) / 0.18 : 1;
+
+          // Gelombang sonar radio melingkar memancar dari RS asal
+          if (!reducedMotion) {
+            for (let ring = 0; ring < 3; ring++) {
+              const rt = (t * 2.4 + ring * 0.33) % 1;
+              ctx.save();
+              ctx.beginPath();
+              ctx.arc(fromNode.x, fromNode.y, 18 + rt * 52, 0, Math.PI * 2);
+              ctx.strokeStyle = '#F59E0B';
+              ctx.globalAlpha = (1 - rt) * 0.65 * fadeAlpha;
+              ctx.lineWidth = 2.4;
+              ctx.stroke();
+              ctx.restore();
+            }
+          }
+
+          // Garis lengkung sinyal radio dari RS asal ke RS penolong
+          const midX = (fromNode.x + toNode.x) / 2;
+          const midY = (fromNode.y + toNode.y) / 2 - Math.min(110, Math.hypot(toNode.x - fromNode.x, toNode.y - fromNode.y) * 0.16);
+
+          ctx.save();
+          ctx.globalAlpha = 0.85 * fadeAlpha;
+          ctx.strokeStyle = '#F59E0B';
+          ctx.lineWidth = 2.6;
+          ctx.lineCap = 'round';
+          ctx.setLineDash([8, 8]);
+          ctx.lineDashOffset = reducedMotion ? 0 : dashOffset * 1.4;
+          ctx.beginPath();
+          ctx.moveTo(fromNode.x, fromNode.y);
+          ctx.quadraticCurveTo(midX, midY, toNode.x, toNode.y);
+          ctx.stroke();
+
+          // Titik pulsa sinyal meluncur sepanjang kurva dari RS asal ke RS tujuan
+          if (!reducedMotion) {
+            const p = (t * 2.2) % 1;
+            const inv = 1 - p;
+            const sx = inv * inv * fromNode.x + 2 * inv * p * midX + p * p * toNode.x;
+            const sy = inv * inv * fromNode.y + 2 * inv * p * midY + p * p * toNode.y;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.arc(sx, sy, 5.5, 0, Math.PI * 2);
+            ctx.fillStyle = '#FEF3C7';
+            ctx.fill();
+            ctx.strokeStyle = '#D97706';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+
+          // Pil "Memanggil bantuan..." di atas RS asal
+          ctx.setLineDash([]);
+          ctx.font = '600 11px Figtree, system-ui, sans-serif';
+          const labelText = 'Memanggil bantuan...';
+          const textW = ctx.measureText(labelText).width;
+          const pillW = textW + 24;
+          const pillH = 22;
+          const px = fromNode.x;
+          const py = fromNode.y - 46;
+          ctx.fillStyle = 'rgba(255, 251, 235, 0.96)';
+          ctx.strokeStyle = '#D97706';
+          ctx.lineWidth = 1.5;
+          drawRoundedRect(ctx, px - pillW / 2, py - pillH / 2, pillW, pillH, 11);
+          ctx.fill();
+          ctx.stroke();
+
+          // Titik indikator berkedip di kiri pil
+          const blink = Math.floor(animNow / 240) % 2 === 0;
+          ctx.beginPath();
+          ctx.arc(px - pillW / 2 + 10, py, 3.2, 0, Math.PI * 2);
+          ctx.fillStyle = blink ? '#D97706' : '#FCD34D';
+          ctx.fill();
+
+          ctx.fillStyle = '#92400E';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(labelText, px + 4, py + 0.5);
+          ctx.restore();
+        }
+      }
 
       // 0c. Micro-ripple di RS saat ambulans/pasien gawat tiba
       for (let i = ripples.length - 1; i >= 0; i--) {
@@ -282,37 +377,31 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
         ctx.restore();
       }
 
-      // 1. Garis rute rujukan aktif + label estimasi menit Dijkstra
+      // 1. Garis rute rujukan & jemputan aktif + label estimasi menit Dijkstra
       if (ambulances && ambulances.size > 0) {
-        ctx.save();
-        ctx.strokeStyle = '#2563EB';
-        ctx.lineWidth = 3.4;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.setLineDash([10, 8]);
-        ctx.lineDashOffset = reducedMotion ? 0 : dashOffset;
-
         const routeLabels = [];
 
         for (const [id, amb] of ambulances.entries()) {
           if (amb._startAnimMs === undefined) amb._startAnimMs = animNow;
           const progress = (animNow - amb._startAnimMs) / Math.max(amb.durationMs, 1);
           if (progress >= 1) {
-            if (amb.phase === 'dispatch' && !reducedMotion) {
+            if ((amb.phase === 'dispatch' || amb.phase === 'pickup') && !reducedMotion) {
               const dest = nodeMap.get(amb.to);
               if (dest) {
+                const isPickup = amb.phase === 'pickup';
+                const noticeColor = isPickup ? '#D97706' : amb.isAssist ? '#0891B2' : '#2563EB';
                 ripples.push({
                   x: dest.x,
                   y: dest.y,
-                  color: '#2563EB',
+                  color: noticeColor,
                   startAnimMs: animNow,
                   durationMs: 650,
                 });
                 floatingNotices.push({
                   x: dest.x,
                   y: dest.y - 36,
-                  text: 'Tiba',
-                  color: '#2563EB',
+                  text: isPickup ? 'Jemput' : 'Tiba',
+                  color: noticeColor,
                   startAnimMs: animNow,
                   durationMs: 950,
                 });
@@ -321,11 +410,23 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
             ambulances.delete(id);
             continue;
           }
-          if (amb.phase !== 'dispatch' || !amb.path || amb.path.length < 2) continue;
+          if ((amb.phase !== 'dispatch' && amb.phase !== 'pickup') || !amb.path || amb.path.length < 2) continue;
 
           if (!amb._coords) {
             amb._coords = buildCoordsFromPath(amb.path, nodeMap);
           }
+
+          const isPickup = amb.phase === 'pickup';
+          const isAssistDispatch = amb.phase === 'dispatch' && amb.isAssist;
+          const strokeColor = isPickup ? '#D97706' : isAssistDispatch ? '#0891B2' : '#2563EB';
+
+          ctx.save();
+          ctx.strokeStyle = strokeColor;
+          ctx.lineWidth = isAssistDispatch ? 3.8 : 3.4;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.setLineDash(isPickup ? [7, 7] : [10, 8]);
+          ctx.lineDashOffset = reducedMotion ? 0 : isPickup ? dashOffset * 1.25 : dashOffset;
 
           ctx.beginPath();
           amb._coords.forEach((p, idx) => {
@@ -333,13 +434,23 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
             else ctx.lineTo(p.x, p.y);
           });
           ctx.stroke();
+          ctx.restore();
 
           const mid = samplePoints(amb._coords, 0.5);
           if (mid && amb.travelMin) {
-            routeLabels.push({ x: mid.x, y: mid.y, text: `±${amb.travelMin} mnt` });
+            routeLabels.push({
+              x: mid.x,
+              y: mid.y,
+              text: isPickup
+                ? `Jemput · ±${amb.travelMin} mnt`
+                : isAssistDispatch
+                  ? `Bantuan · ±${amb.travelMin} mnt`
+                  : `±${amb.travelMin} mnt`,
+              borderColor: strokeColor,
+              textColor: isPickup ? '#92400E' : isAssistDispatch ? '#155E75' : '#1E3A8A',
+            });
           }
         }
-        ctx.restore();
 
         for (const lbl of routeLabels) {
           ctx.save();
@@ -347,14 +458,14 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
           const textW = ctx.measureText(lbl.text).width;
           const pillW = textW + 14;
           const pillH = 20;
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
-          ctx.strokeStyle = '#2563EB';
-          ctx.lineWidth = 1.25;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+          ctx.strokeStyle = lbl.borderColor;
+          ctx.lineWidth = 1.3;
           drawRoundedRect(ctx, lbl.x - pillW / 2, lbl.y - pillH / 2 - 14, pillW, pillH, 10);
           ctx.fill();
           ctx.stroke();
 
-          ctx.fillStyle = '#1E3A8A';
+          ctx.fillStyle = lbl.textColor;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(lbl.text, lbl.x, lbl.y - 13.5);
@@ -409,9 +520,10 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
         }
       }
 
-      // 3. Ambulans dengan belok halus (lerpAngle) + akselerasi/pengereman + sirine + headlight malam
+      // 3. Ambulans reguler & ambulans bantuan (belok halus lerpAngle + akselerasi + sirine + headlight)
       if (ambulances && ambulances.size > 0) {
         const sirenRedOn = Math.floor(animNow / 180) % 2 === 0;
+        const assistSirenOn = Math.floor(animNow / 130) % 2 === 0;
 
         for (const amb of ambulances.values()) {
           const rawProgress = (animNow - (amb._startAnimMs ?? animNow)) / Math.max(amb.durationMs, 1);
@@ -432,13 +544,21 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
             amb._smoothAngle = lerpAngle(amb._smoothAngle, pos.angle, 0.18);
           }
 
-          // Jejak cahaya biru singkat di belakang ambulans saat mengantar
-          if (amb.phase === 'dispatch' && easedProgress > 0.03) {
+          const isPickup = amb.phase === 'pickup';
+          const isAssist = Boolean(amb.isAssist) || isPickup;
+          const isActiveEmergency = amb.phase === 'dispatch' || isPickup;
+
+          // Jejak cahaya di belakang ambulans saat menjemput / mengantar
+          if (isActiveEmergency && easedProgress > 0.03) {
             const trailPos = samplePoints(amb._coords, Math.max(0, easedProgress - 0.04));
             if (trailPos) {
               ctx.save();
-              ctx.strokeStyle = 'rgba(37, 99, 235, 0.28)';
-              ctx.lineWidth = 7;
+              ctx.strokeStyle = isPickup
+                ? 'rgba(245, 158, 11, 0.34)'
+                : isAssist
+                  ? 'rgba(8, 145, 178, 0.34)'
+                  : 'rgba(37, 99, 235, 0.28)';
+              ctx.lineWidth = isAssist ? 8 : 7;
               ctx.lineCap = 'round';
               ctx.beginPath();
               ctx.moveTo(trailPos.x, trailPos.y);
@@ -472,38 +592,63 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
           drawRoundedRect(ctx, -15, -6, 30, 17, 5);
           ctx.fill();
 
-          // Badan ambulans
-          ctx.fillStyle = '#FFFFFF';
-          ctx.strokeStyle = amb.phase === 'dispatch' ? '#2563EB' : '#64748B';
-          ctx.lineWidth = 2;
+          // Badan ambulans (ambulans bantuan memakai latar krem-putih & garis tepi amber/tosca)
+          ctx.fillStyle = isAssist ? '#FFFBEB' : '#FFFFFF';
+          ctx.strokeStyle = isPickup
+            ? '#D97706'
+            : isAssist && amb.phase === 'dispatch'
+              ? '#0891B2'
+              : amb.phase === 'dispatch'
+                ? '#2563EB'
+                : '#64748B';
+          ctx.lineWidth = isAssist ? 2.3 : 2;
           drawRoundedRect(ctx, -15, -8.5, 30, 17, 5);
           ctx.fill();
           ctx.stroke();
 
+          // Strip darurat amber di sisi badan khusus ambulans bantuan
+          if (isAssist) {
+            ctx.fillStyle = '#F59E0B';
+            ctx.fillRect(-13, -7.5, 19, 2.2);
+            ctx.fillRect(-13, 5.3, 19, 2.2);
+          }
+
           // Kaca depan kabin
-          ctx.fillStyle = '#DBEAFE';
+          ctx.fillStyle = isAssist ? '#CFFAFE' : '#DBEAFE';
           drawRoundedRect(ctx, 6.5, -5.5, 5.5, 11, 2);
           ctx.fill();
 
-          // Tanda plus merah di atap
-          ctx.fillStyle = '#DC2626';
+          // Tanda plus di atap (tosca untuk ambulans bantuan, merah untuk reguler)
+          ctx.fillStyle = isAssist ? '#0891B2' : '#DC2626';
           ctx.fillRect(-5.5, -4.5, 3, 9);
           ctx.fillRect(-8.5, -1.5, 9, 3);
 
-          // Lampu sirine merah-biru berkedip lembut saat mengantar pasien
-          if (amb.phase === 'dispatch' && !reducedMotion) {
+          // Lampu sirine berkedip (amber-cyan cepat untuk ambulans bantuan; merah-biru untuk reguler)
+          if (isActiveEmergency && !reducedMotion) {
             ctx.beginPath();
-            ctx.arc(3.5, -3.5, 2.2, 0, Math.PI * 2);
-            ctx.fillStyle = sirenRedOn ? '#DC2626' : '#93C5FD';
+            ctx.arc(3.5, -3.5, 2.3, 0, Math.PI * 2);
+            ctx.fillStyle = isAssist
+              ? assistSirenOn
+                ? '#F59E0B'
+                : '#67E8F9'
+              : sirenRedOn
+                ? '#DC2626'
+                : '#93C5FD';
             ctx.fill();
 
             ctx.beginPath();
-            ctx.arc(3.5, 3.5, 2.2, 0, Math.PI * 2);
-            ctx.fillStyle = sirenRedOn ? '#93C5FD' : '#2563EB';
+            ctx.arc(3.5, 3.5, 2.3, 0, Math.PI * 2);
+            ctx.fillStyle = isAssist
+              ? assistSirenOn
+                ? '#67E8F9'
+                : '#0891B2'
+              : sirenRedOn
+                ? '#93C5FD'
+                : '#2563EB';
             ctx.fill();
           }
 
-          // Titik triase pasien di pojok belakang
+          // Titik triase pasien di pojok belakang saat membawa pasien
           if (amb.phase === 'dispatch' && amb.triage) {
             ctx.beginPath();
             ctx.arc(-11.5, -4.5, 2.6, 0, Math.PI * 2);
@@ -561,7 +706,7 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
       document.removeEventListener('visibilitychange', handleVisibility);
       if (rafId !== null) window.cancelAnimationFrame(rafId);
     };
-  }, [nodes, walkinsRef, ambulancesRef, houses]);
+  }, [nodes, walkinsRef, ambulancesRef, helpCallsRef, houses]);
 
   return (
     <canvas

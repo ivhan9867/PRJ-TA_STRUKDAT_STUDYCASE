@@ -42,6 +42,7 @@ export const MapCanvas = forwardRef(function MapCanvas(
     highlightedHospitalIds,
     walkinsRef,
     ambulancesRef,
+    helpCallsRef,
     paused = false,
     simTime = 360,
     dynamicAtmosphere = true,
@@ -253,6 +254,7 @@ export const MapCanvas = forwardRef(function MapCanvas(
           nodes={nodes}
           walkinsRef={walkinsRef}
           ambulancesRef={ambulancesRef}
+          helpCallsRef={helpCallsRef}
           paused={paused}
           simTime={simTime}
           dynamicAtmosphere={dynamicAtmosphere}
