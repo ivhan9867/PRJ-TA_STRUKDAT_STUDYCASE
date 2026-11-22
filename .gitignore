@@ -21,3 +21,16 @@ serviceAccountKey.json
 npm-debug.log*
 .DS_Store
 Thumbs.db
+
+# Dokumen arahan internal, soal PDF, & gambar referensi lokal (tidak perlu masuk GitHub)
+00_BRIEF.md
+01_DESIGN_SYSTEM.md
+02_UI_SPEC.md
+03_ARSITEKTUR_DAN_STRUKTUR_DATA.md
+docs/00_BRIEF.md
+docs/01_DESIGN_SYSTEM.md
+docs/02_UI_SPEC.md
+docs/03_ARSITEKTUR_DAN_STRUKTUR_DATA.md
+*.pdf
+*.webp
+106330f0-c7be-43ad-be61-c4fd81f9ac8b.png
