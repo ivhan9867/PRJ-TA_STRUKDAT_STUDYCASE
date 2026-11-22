@@ -179,6 +179,24 @@ export function registerSocketHandlers(io, { engine, userStore }) {
       emitHospitalDetailToSocket(targetId);
     });
 
+    socket.on('hospital:setAmbulances', ({ hospitalId, total } = {}) => {
+      const user = getFreshUser();
+      if (!requireSocketRole(socket, ['petugas', 'dinkes'])) return;
+      const targetId = resolveManagedHospitalId(user, hospitalId);
+      if (!targetId) return;
+      const scopeKey = user.role === 'dinkes' ? 'dinkes' : `petugas:${user.uid}`;
+      const res = engine.setHospitalAmbulances(targetId, total, {
+        recordUndo: true,
+        scopeKey,
+      });
+      if (res.error) {
+        socket.emit('error:permission', { message: res.error });
+        return;
+      }
+      io.emit('world:tick', engine.getTickPayload());
+      emitHospitalDetailToSocket(targetId);
+    });
+
     socket.on('patient:referManual', ({ hospitalId, patientCode, toHospitalId } = {}) => {
       const user = getFreshUser();
       if (!requireSocketRole(socket, ['petugas', 'dinkes'])) return;

@@ -24,8 +24,32 @@ const TRIAGE_COLOR = {
 const POLI_COLOR = '#3B82F6';
 
 /**
- * Menghitung posisi (x, y) dan sudut arah (rad) pada daftar titik koordinat [{x, y}] di progres t (0..1).
+ * Interpolasi sudut terpendek (radian) agar ambulans berbelok halus di persimpangan.
  */
+function lerpAngle(current, target, factor) {
+  let diff = target - current;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  return current + diff * factor;
+}
+
+/**
+ * Kurva akselerasi lembut saat berangkat (6% awal) dan pengereman lembut saat tiba (6% akhir).
+ */
+function easeDepartureArrival(t) {
+  const clamped = Math.min(1, Math.max(0, t));
+  const ramp = 0.06;
+  if (clamped < ramp) {
+    const u = clamped / ramp;
+    return ramp * (u * u * 0.5 + u * 0.5);
+  }
+  if (clamped > 1 - ramp) {
+    const u = (1 - clamped) / ramp;
+    return 1 - ramp * (u * u * 0.5 + u * 0.5);
+  }
+  return clamped;
+}
+
 function samplePoints(points, progress) {
   if (!points || points.length === 0) return null;
   if (points.length === 1) {
@@ -89,27 +113,22 @@ function drawRoundedRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-/**
- * Menggambar siluet vektor mini orang berjalan untuk pasien NPC di Canvas 60 fps.
- * Jelas dibedakan antara Poli (biru lembut) dan IGD (Ringan/Sedang/Gawat + denyut merah).
- */
-function drawPatientSprite(ctx, x, y, { unit, triage, now, seedOffset, alpha, reducedMotion }) {
+function drawPatientSprite(ctx, x, y, { unit, triage, animNow, seedOffset, alpha, reducedMotion }) {
   const isPoli = unit === 'poli';
   const color = isPoli ? POLI_COLOR : TRIAGE_COLOR[triage] || TRIAGE_COLOR.ringan;
   const isGawat = !isPoli && triage === 'gawat';
   const isSedang = !isPoli && triage === 'sedang';
 
   const walkSpeed = isGawat ? 0.022 : isSedang ? 0.017 : 0.013;
-  const bob = reducedMotion ? 0 : Math.sin(now * walkSpeed + seedOffset) * 1.3;
+  const bob = reducedMotion ? 0 : Math.sin(animNow * walkSpeed + seedOffset) * 1.3;
   const scale = isPoli ? 0.85 : isGawat ? 1.15 : 1.0;
 
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(x, y);
 
-  // Cincin peringatan berdenyut untuk pasien Gawat
   if (isGawat && !reducedMotion) {
-    const pulse = ((now * 0.002 + seedOffset) % 1);
+    const pulse = (animNow * 0.002 + seedOffset) % 1;
     ctx.beginPath();
     ctx.arc(0, -3, 6 + pulse * 8, 0, Math.PI * 2);
     ctx.strokeStyle = `rgba(220, 38, 38, ${(1 - pulse) * 0.6})`;
@@ -117,7 +136,6 @@ function drawPatientSprite(ctx, x, y, { unit, triage, now, seedOffset, alpha, re
     ctx.stroke();
   }
 
-  // Bayangan kecil di kaki
   ctx.beginPath();
   ctx.ellipse(0, 3.5, 4.2 * scale, 2 * scale, 0, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(15, 23, 42, 0.18)';
@@ -126,7 +144,6 @@ function drawPatientSprite(ctx, x, y, { unit, triage, now, seedOffset, alpha, re
   ctx.translate(0, bob);
   ctx.scale(scale, scale);
 
-  // Badan/bahu membulat dengan tepi putih agar kontras di atas jalan putih/blok
   ctx.beginPath();
   ctx.arc(0, 0.5, 4.2, Math.PI, 0, false);
   ctx.lineTo(4.2, 3);
@@ -138,7 +155,6 @@ function drawPatientSprite(ctx, x, y, { unit, triage, now, seedOffset, alpha, re
   ctx.lineWidth = 1.3;
   ctx.stroke();
 
-  // Kepala
   ctx.beginPath();
   ctx.arc(0, -5.2, 2.7, 0, Math.PI * 2);
   ctx.fillStyle = '#FFFFFF';
@@ -151,9 +167,11 @@ function drawPatientSprite(ctx, x, y, { unit, triage, now, seedOffset, alpha, re
 }
 
 /**
- * Lapisan Canvas overlay 60 fps di atas SVG statis.
- * Menggambar garis rute rujukan Dijkstra + label menit, pasien NPC siluet orang berjalan
- * dari rumah warga, ambulans bersirine berkedip, dan ripple saat tiba di RS.
+ * Lapisan Canvas overlay 60 fps dengan:
+ * - Jam animasi virtual (true pause freeze saat Jeda ditekan)
+ * - Rotasi belok halus (lerpAngle) + akselerasi/pengereman lembut untuk ambulans
+ * - Lampu jendela rumah & headlight ambulans saat malam
+ * - Indikator lembut "Tiba" + ripple saat ambulans tiba di RS tujuan
  */
 export const MapOverlayCanvas = memo(function MapOverlayCanvas({
   nodes,
@@ -178,15 +196,26 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
 
     const nodeMap = new Map(nodes.map((n) => [n.id, n]));
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-    const ripples = []; // { x, y, color, startMs, durationMs }
+    const ripples = [];
+    const floatingNotices = []; // { x, y, text, color, startAnimMs, durationMs }
     let rafId = null;
     let dashOffset = 0;
     let riverOffset = 0;
 
-    function render(now) {
+    // Jam animasi virtual: berhenti persis saat simulasi dijeda (true pause freeze)
+    let animNow = 0;
+    let lastWallNow = performance.now();
+
+    function render(wallNow) {
       if (document.hidden) {
         rafId = null;
         return;
+      }
+
+      const rawDt = Math.min(64, Math.max(0, wallNow - lastWallNow));
+      lastWallNow = wallNow;
+      if (!pausedRef.current) {
+        animNow += rawDt;
       }
 
       ctx.clearRect(0, 0, WORLD_W, WORLD_H);
@@ -196,7 +225,7 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
         riverOffset = (riverOffset + 0.35) % 64;
       }
 
-      // 0a. Arus sungai mengalir halus (otomatis diam saat reducedMotion atau dijeda)
+      // 0a. Arus sungai mengalir halus
       if (!reducedMotion) {
         ctx.save();
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.38)';
@@ -205,9 +234,9 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
         ctx.setLineDash([18, 46]);
         ctx.lineDashOffset = -riverOffset;
 
-        for (const laneOffset of [-34, 0, 34]) {
+        for (const laneOffset of [-38, 0, 38]) {
           ctx.beginPath();
-          for (let y = 0; y <= WORLD_H; y += 45) {
+          for (let y = 0; y <= WORLD_H; y += 50) {
             const x = riverCenterX(y) + laneOffset;
             if (y === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
@@ -222,7 +251,6 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
       if (nightLevel > 0.12) {
         ctx.save();
         for (let i = 0; i < houses.length; i++) {
-          // Sekitar 75% rumah menyalakan lampu malam agar terlihat alami
           if (i % 4 === 0) continue;
           const h = houses[i];
           ctx.fillStyle = `rgba(254, 240, 138, ${(0.72 * nightLevel).toFixed(2)})`;
@@ -236,17 +264,17 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
       const ambulances = ambulancesRef?.current;
       const walkins = walkinsRef?.current;
 
-      // 0. Micro-ripple di RS saat ambulans/pasien gawat tiba
+      // 0c. Micro-ripple di RS saat ambulans/pasien gawat tiba
       for (let i = ripples.length - 1; i >= 0; i--) {
         const rp = ripples[i];
-        const t = (now - rp.startMs) / rp.durationMs;
+        const t = (animNow - rp.startAnimMs) / rp.durationMs;
         if (t >= 1) {
           ripples.splice(i, 1);
           continue;
         }
         ctx.save();
         ctx.beginPath();
-        ctx.arc(rp.x, rp.y, 16 + t * 34, 0, Math.PI * 2);
+        ctx.arc(rp.x, rp.y, 18 + t * 38, 0, Math.PI * 2);
         ctx.strokeStyle = rp.color;
         ctx.globalAlpha = (1 - t) * 0.55;
         ctx.lineWidth = 2.5;
@@ -254,11 +282,11 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
         ctx.restore();
       }
 
-      // 1. Garis rute rujukan aktif (--accent lebar 3, putus-putus bergerak) + label estimasi menit Dijkstra
+      // 1. Garis rute rujukan aktif + label estimasi menit Dijkstra
       if (ambulances && ambulances.size > 0) {
         ctx.save();
         ctx.strokeStyle = '#2563EB';
-        ctx.lineWidth = 3.2;
+        ctx.lineWidth = 3.4;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.setLineDash([10, 8]);
@@ -267,9 +295,9 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
         const routeLabels = [];
 
         for (const [id, amb] of ambulances.entries()) {
-          const progress = (now - amb.startWallMs) / Math.max(amb.durationMs, 1);
+          if (amb._startAnimMs === undefined) amb._startAnimMs = animNow;
+          const progress = (animNow - amb._startAnimMs) / Math.max(amb.durationMs, 1);
           if (progress >= 1) {
-            // Munculkan ripple singkat di RS tujuan saat ambulans tiba
             if (amb.phase === 'dispatch' && !reducedMotion) {
               const dest = nodeMap.get(amb.to);
               if (dest) {
@@ -277,8 +305,16 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
                   x: dest.x,
                   y: dest.y,
                   color: '#2563EB',
-                  startMs: now,
+                  startAnimMs: animNow,
                   durationMs: 650,
+                });
+                floatingNotices.push({
+                  x: dest.x,
+                  y: dest.y - 36,
+                  text: 'Tiba',
+                  color: '#2563EB',
+                  startAnimMs: animNow,
+                  durationMs: 950,
                 });
               }
             }
@@ -287,23 +323,24 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
           }
           if (amb.phase !== 'dispatch' || !amb.path || amb.path.length < 2) continue;
 
-          const pts = buildCoordsFromPath(amb.path, nodeMap);
+          if (!amb._coords) {
+            amb._coords = buildCoordsFromPath(amb.path, nodeMap);
+          }
+
           ctx.beginPath();
-          pts.forEach((p, idx) => {
+          amb._coords.forEach((p, idx) => {
             if (idx === 0) ctx.moveTo(p.x, p.y);
             else ctx.lineTo(p.x, p.y);
           });
           ctx.stroke();
 
-          // Simpan titik tengah rute untuk label estimasi menit Dijkstra
-          const mid = samplePoints(pts, 0.5);
+          const mid = samplePoints(amb._coords, 0.5);
           if (mid && amb.travelMin) {
             routeLabels.push({ x: mid.x, y: mid.y, text: `±${amb.travelMin} mnt` });
           }
         }
         ctx.restore();
 
-        // Gambar pill estimasi menit di tengah rute rujukan
         for (const lbl of routeLabels) {
           ctx.save();
           ctx.font = '600 11px Figtree, system-ui, sans-serif';
@@ -329,7 +366,8 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
       if (walkins && walkins.size > 0) {
         let idx = 0;
         for (const [id, wk] of walkins.entries()) {
-          const progress = (now - wk.startWallMs) / Math.max(wk.durationMs, 1);
+          if (wk._startAnimMs === undefined) wk._startAnimMs = animNow;
+          const progress = (animNow - wk._startAnimMs) / Math.max(wk.durationMs, 1);
           if (progress >= 1) {
             if (wk.triage === 'gawat' && !reducedMotion) {
               const dest = nodeMap.get(wk.toHospital);
@@ -338,7 +376,7 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
                   x: dest.x,
                   y: dest.y,
                   color: '#DC2626',
-                  startMs: now,
+                  startAnimMs: animNow,
                   durationMs: 500,
                 });
               }
@@ -355,7 +393,6 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
           const pos = samplePoints(wk._coords, progress);
           if (!pos) continue;
 
-          // Fade-in halus saat keluar pintu rumah & fade-out saat masuk pintu RS
           const fadeIn = Math.min(1, progress / 0.08);
           const fadeOut = Math.min(1, (1 - progress) / 0.08);
           const alpha = Math.min(fadeIn, fadeOut) * 0.92;
@@ -363,7 +400,7 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
           drawPatientSprite(ctx, pos.x, pos.y, {
             unit: wk.unit,
             triage: wk.triage,
-            now,
+            animNow,
             seedOffset: wk._seedOffset || 0,
             alpha,
             reducedMotion,
@@ -372,24 +409,32 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
         }
       }
 
-      // 3. Ambulans (bodi detail + kaca depan + sirine berkedip + tanda plus merah + titik triase)
+      // 3. Ambulans dengan belok halus (lerpAngle) + akselerasi/pengereman + sirine + headlight malam
       if (ambulances && ambulances.size > 0) {
-        const sirenRedOn = Math.floor(now / 180) % 2 === 0;
+        const sirenRedOn = Math.floor(animNow / 180) % 2 === 0;
 
         for (const amb of ambulances.values()) {
-          const progress = (now - amb.startWallMs) / Math.max(amb.durationMs, 1);
-          if (progress >= 1) continue;
+          const rawProgress = (animNow - (amb._startAnimMs ?? animNow)) / Math.max(amb.durationMs, 1);
+          if (rawProgress >= 1) continue;
 
           if (!amb._coords) {
             amb._coords = buildCoordsFromPath(amb.path, nodeMap);
           }
 
-          const pos = samplePoints(amb._coords, progress);
+          const easedProgress = easeDepartureArrival(rawProgress);
+          const pos = samplePoints(amb._coords, easedProgress);
           if (!pos) continue;
 
+          // Rotasi belok halus di persimpangan
+          if (amb._smoothAngle === undefined) {
+            amb._smoothAngle = pos.angle;
+          } else if (!pausedRef.current) {
+            amb._smoothAngle = lerpAngle(amb._smoothAngle, pos.angle, 0.18);
+          }
+
           // Jejak cahaya biru singkat di belakang ambulans saat mengantar
-          if (amb.phase === 'dispatch' && progress > 0.03) {
-            const trailPos = samplePoints(amb._coords, Math.max(0, progress - 0.045));
+          if (amb.phase === 'dispatch' && easedProgress > 0.03) {
+            const trailPos = samplePoints(amb._coords, Math.max(0, easedProgress - 0.04));
             if (trailPos) {
               ctx.save();
               ctx.strokeStyle = 'rgba(37, 99, 235, 0.28)';
@@ -405,18 +450,18 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
 
           ctx.save();
           ctx.translate(pos.x, pos.y);
-          ctx.rotate(pos.angle);
+          ctx.rotate(amb._smoothAngle);
 
           // Sorot lampu depan (headlight cone) ambulans saat malam hari
           if (nightLevel > 0.15) {
-            const grad = ctx.createRadialGradient(14, 0, 2, 34, 0, 34);
+            const grad = ctx.createRadialGradient(14, 0, 2, 36, 0, 38);
             grad.addColorStop(0, `rgba(254, 249, 195, ${(0.45 * nightLevel).toFixed(2)})`);
             grad.addColorStop(1, 'rgba(254, 249, 195, 0)');
             ctx.fillStyle = grad;
             ctx.beginPath();
             ctx.moveTo(13, -4);
-            ctx.lineTo(48, -18);
-            ctx.lineTo(48, 18);
+            ctx.lineTo(52, -20);
+            ctx.lineTo(52, 20);
             ctx.lineTo(13, 4);
             ctx.closePath();
             ctx.fill();
@@ -435,7 +480,7 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
           ctx.fill();
           ctx.stroke();
 
-          // Kaca depan kabin (arah kanan +x)
+          // Kaca depan kabin
           ctx.fillStyle = '#DBEAFE';
           drawRoundedRect(ctx, 6.5, -5.5, 5.5, 11, 2);
           ctx.fill();
@@ -470,11 +515,41 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
         }
       }
 
+      // 4. Indikator lembut fade-up saat ambulans tiba di RS tujuan
+      for (let i = floatingNotices.length - 1; i >= 0; i--) {
+        const fn = floatingNotices[i];
+        const t = (animNow - fn.startAnimMs) / fn.durationMs;
+        if (t >= 1) {
+          floatingNotices.splice(i, 1);
+          continue;
+        }
+        const yOff = t * 22;
+        const alpha = t < 0.2 ? t / 0.2 : 1 - (t - 0.2) / 0.8;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+        ctx.font = '600 11px Figtree, system-ui, sans-serif';
+        const pillW = 46;
+        const pillH = 20;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.strokeStyle = fn.color;
+        ctx.lineWidth = 1.5;
+        drawRoundedRect(ctx, fn.x - pillW / 2, fn.y - yOff - pillH / 2, pillW, pillH, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = fn.color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(fn.text, fn.x, fn.y - yOff + 0.5);
+        ctx.restore();
+      }
+
       rafId = window.requestAnimationFrame(render);
     }
 
     function handleVisibility() {
       if (!document.hidden && rafId === null) {
+        lastWallNow = performance.now();
         rafId = window.requestAnimationFrame(render);
       }
     }
@@ -486,7 +561,7 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
       document.removeEventListener('visibilitychange', handleVisibility);
       if (rafId !== null) window.cancelAnimationFrame(rafId);
     };
-  }, [nodes, walkinsRef, ambulancesRef]);
+  }, [nodes, walkinsRef, ambulancesRef, houses]);
 
   return (
     <canvas

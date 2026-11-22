@@ -281,6 +281,10 @@ export function useSimulationStore(token, { onProfileUpdated } = {}) {
     socketRef.current?.emit('hospital:setBeds', { unit, total, hospitalId });
   }, []);
 
+  const setHospitalAmbulances = useCallback((total, hospitalId) => {
+    socketRef.current?.emit('hospital:setAmbulances', { total, hospitalId });
+  }, []);
+
   const referPatientManual = useCallback((patientCode, toHospitalId, hospitalId) => {
     socketRef.current?.emit('patient:referManual', { patientCode, toHospitalId, hospitalId });
   }, []);
@@ -321,6 +325,7 @@ export function useSimulationStore(token, { onProfileUpdated } = {}) {
     callNextPatient,
     dischargePatient,
     setHospitalBeds,
+    setHospitalAmbulances,
     referPatientManual,
     addManualIgdPatient,
     registerWarga,

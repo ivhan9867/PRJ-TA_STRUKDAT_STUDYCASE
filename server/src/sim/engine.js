@@ -172,6 +172,8 @@ export class SimulationEngine {
         y: node.y,
         bedsInapTotal: cfg.bedsInap,
         bedsIcuTotal: cfg.bedsIcu,
+        ambulancesTotal: cfg.ambulances,
+        ambulanceNextNum: cfg.ambulances,
         igdQueue: new PriorityQueue((a, b) => {
           const tDiff = TRIAGE_RANK[a.triage] - TRIAGE_RANK[b.triage];
           if (tDiff !== 0) return tDiff;
@@ -564,6 +566,10 @@ export class SimulationEngine {
         this._updateEdgeTraffic(routeEdges, -1);
         const homeRs = this.hospitals.get(homeHospitalId);
         if (!homeRs) return;
+        // Jika total armada baru saja dikurangi, pensiunkan ambulans berlebih saat kembali
+        if (homeRs.freeAmbulances.size() >= homeRs.ambulancesTotal) {
+          return;
+        }
         ambulance.status = 'siaga';
         homeRs.freeAmbulances.append(ambulance);
         this._dispatchPendingAmbulanceRequests(homeRs);
@@ -1466,6 +1472,52 @@ export class SimulationEngine {
   }
 
   /**
+   * Mengubah jumlah armada ambulans RS (batas 1 sampai maks 3x kapasitas awal / minimal 6).
+   * Saat ditambah, ambulans baru langsung masuk LinkedList freeAmbulances dan memberangkatkan
+   * antrean permintaan ambulans yang tertahan. Masuk ke Stack Undo.
+   */
+  setHospitalAmbulances(hospitalId, total, { recordUndo = true, scopeKey } = {}) {
+    const rs = this.hospitals.get(hospitalId);
+    if (!rs) return { error: 'Rumah sakit tidak ditemukan.' };
+
+    const maxCap = Math.max(6, rs.ambulances * 3);
+    const prevTotal = rs.ambulancesTotal;
+    const clamped = Math.max(1, Math.min(maxCap, Math.round(Number(total))));
+    if (clamped === prevTotal) return { total: clamped };
+
+    const diff = clamped - prevTotal;
+    rs.ambulancesTotal = clamped;
+
+    if (diff > 0) {
+      for (let i = 0; i < diff; i++) {
+        rs.ambulanceNextNum += 1;
+        rs.freeAmbulances.append({
+          id: `amb_${rs.id}_${rs.ambulanceNextNum}`,
+          homeHospitalId: rs.id,
+          status: 'siaga',
+        });
+      }
+      this._dispatchPendingAmbulanceRequests(rs);
+    } else {
+      let toRemove = Math.abs(diff);
+      while (toRemove > 0 && !rs.freeAmbulances.isEmpty()) {
+        rs.freeAmbulances.removeFirst();
+        toRemove -= 1;
+      }
+    }
+
+    if (recordUndo && scopeKey) {
+      const desc = `Ubah armada ambulans ${rs.name} (${prevTotal} ke ${clamped})`;
+      this.undoManager.record(scopeKey, desc, () => {
+        this.setHospitalAmbulances(hospitalId, prevTotal, { recordUndo: false });
+      });
+    }
+
+    this._syncTreeAndStatuses(false);
+    return { total: clamped };
+  }
+
+  /**
    * Petugas RS mengalihkan pasien dari antrean IGD ke RS lain secara manual.
    * Masuk ke Stack Undo milik petugas (jika masih di antrean ambulans, dapat dibatalkan).
    */
@@ -1614,7 +1666,8 @@ export class SimulationEngine {
         poliQueue: rs.poliQueue.size(),
         poliDoctors: rs.poliDoctors,
         ambFree: rs.freeAmbulances.size(),
-        ambulances: rs.ambulances,
+        ambulances: rs.ambulancesTotal,
+        ambQueueCount: rs.ambRequestQueue.size(),
       });
     }
 
@@ -1728,7 +1781,7 @@ export class SimulationEngine {
 
     return {
       hospitalId: rs.id,
-      baseCaps: { inap: rs.bedsInap, icu: rs.bedsIcu },
+      baseCaps: { inap: rs.bedsInap, icu: rs.bedsIcu, ambulances: rs.ambulances },
       queue,
       poliQueue,
       activeIgd,

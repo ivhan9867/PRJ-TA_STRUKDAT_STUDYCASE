@@ -33,6 +33,7 @@ export function RsSayaPage({ user, sim, selectedHospitalId, onSelectHospitalId }
     callNextPatient,
     dischargePatient,
     setHospitalBeds,
+    setHospitalAmbulances,
     referPatientManual,
     addManualIgdPatient,
     undoLastAction,
@@ -80,8 +81,10 @@ export function RsSayaPage({ user, sim, selectedHospitalId, onSelectHospitalId }
 
   const baseInap = detail?.baseCaps?.inap ?? hospital.bedsInap;
   const baseIcu = detail?.baseCaps?.icu ?? hospital.bedsIcu;
+  const baseAmb = detail?.baseCaps?.ambulances ?? 1;
   const maxInap = baseInap * 2;
   const maxIcu = baseIcu * 2;
+  const maxAmb = Math.max(6, baseAmb * 3);
 
   const igdDoctorsFull = hospital.igdBusy >= hospital.igdDoctors;
   const poliDoctorsFull = activePoli.length >= hospital.poliDoctors;
@@ -359,16 +362,18 @@ export function RsSayaPage({ user, sim, selectedHospitalId, onSelectHospitalId }
 
           {/* ==================== KOLOM KANAN: TEMPAT TIDUR, DILAYANI, RAWAT INAP, KEJADIAN ==================== */}
           <div className="space-y-5">
-            {/* Kapasitas tempat tidur (- / + masuk Stack Undo) */}
+            {/* Kapasitas tempat tidur & armada ambulans (- / + masuk Stack Undo) */}
             <Card>
               <h2 className="type-h2 mb-3" style={{ color: 'var(--text)' }}>
-                Tempat tidur
+                Tempat tidur dan ambulans
               </h2>
               <div className="space-y-3">
                 <BedCounterRow
                   label="Rawat inap"
-                  used={hospital.inap.used}
+                  subtitle={`Terisi ${hospital.inap.used} dari ${hospital.inap.total} (batas 0–${maxInap})`}
+                  displayText={`${hospital.inap.used}/${hospital.inap.total}`}
                   total={hospital.inap.total}
+                  minCap={0}
                   maxCap={maxInap}
                   disabled={!connected}
                   onChange={(next) => setHospitalBeds('inap', next, activeHospitalId)}
@@ -376,8 +381,10 @@ export function RsSayaPage({ user, sim, selectedHospitalId, onSelectHospitalId }
                 {baseIcu > 0 ? (
                   <BedCounterRow
                     label="ICU"
-                    used={hospital.icu.used}
+                    subtitle={`Terisi ${hospital.icu.used} dari ${hospital.icu.total} (batas 0–${maxIcu})`}
+                    displayText={`${hospital.icu.used}/${hospital.icu.total}`}
                     total={hospital.icu.total}
+                    minCap={0}
                     maxCap={maxIcu}
                     disabled={!connected}
                     onChange={(next) => setHospitalBeds('icu', next, activeHospitalId)}
@@ -391,6 +398,21 @@ export function RsSayaPage({ user, sim, selectedHospitalId, onSelectHospitalId }
                     <span className="type-caption">Tidak tersedia di tipe C</span>
                   </div>
                 )}
+
+                <BedCounterRow
+                  label="Armada ambulans"
+                  subtitle={
+                    hospital.ambQueueCount > 0
+                      ? `Siaga ${hospital.ambFree} dari ${hospital.ambulances} — ${hospital.ambQueueCount} rujukan menunggu`
+                      : `Siaga ${hospital.ambFree} dari ${hospital.ambulances} (batas 1–${maxAmb})`
+                  }
+                  displayText={`${hospital.ambFree}/${hospital.ambulances}`}
+                  total={hospital.ambulances}
+                  minCap={1}
+                  maxCap={maxAmb}
+                  disabled={!connected}
+                  onChange={(next) => setHospitalAmbulances(next, activeHospitalId)}
+                />
               </div>
             </Card>
 
@@ -528,7 +550,7 @@ export function RsSayaPage({ user, sim, selectedHospitalId, onSelectHospitalId }
   );
 }
 
-function BedCounterRow({ label, used, total, maxCap, disabled, onChange }) {
+function BedCounterRow({ label, subtitle, displayText, total, minCap = 0, maxCap, disabled, onChange }) {
   return (
     <div
       style={{ backgroundColor: 'var(--surface-2)', borderRadius: 'var(--radius-inner)' }}
@@ -538,16 +560,14 @@ function BedCounterRow({ label, used, total, maxCap, disabled, onChange }) {
         <div className="text-[14px] font-semibold" style={{ color: 'var(--text)' }}>
           {label}
         </div>
-        <div className="type-caption tabular-nums">
-          Terisi {used} dari {total} (batas 0–{maxCap})
-        </div>
+        <div className="type-caption tabular-nums">{subtitle}</div>
       </div>
 
       <div className="flex items-center gap-2">
         <button
           type="button"
           aria-label={`Kurangi kapasitas ${label}`}
-          disabled={disabled || total <= 0}
+          disabled={disabled || total <= minCap}
           onClick={() => onChange(total - 1)}
           style={{
             backgroundColor: 'var(--surface)',
@@ -560,7 +580,7 @@ function BedCounterRow({ label, used, total, maxCap, disabled, onChange }) {
         </button>
 
         <span className="font-display tabular-nums w-16 text-center text-[15px]">
-          {used}/{total}
+          {displayText}
         </span>
 
         <button

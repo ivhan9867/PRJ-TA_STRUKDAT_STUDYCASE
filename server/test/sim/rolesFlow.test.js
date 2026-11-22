@@ -108,3 +108,32 @@ test('Tambah pasien IGD manual: pasien Gawat langsung menyalip ke puncak Priorit
   assert.equal(top.code, r3.patientCode);
   assert.equal(top.triage, 'gawat');
 });
+
+test('Atur armada ambulans: menambah ambulans langsung memberangkatkan antrean rujukan dan Undo mengembalikan jumlahnya', () => {
+  const dispatches = [];
+  const engine = new SimulationEngine(worldSeed, {
+    seed: 60,
+    onEvent: (name, payload) => {
+      if (name === 'ambulance:dispatch') dispatches.push(payload);
+    },
+  });
+
+  // RS Tirta Utara awalnya punya 1 ambulans; buat 2 rujukan manual -> 1 berangkat, 1 antre di ambRequestQueue
+  const p1 = engine.addManualIgdPatient('rs_tirta_utara', 'gawat');
+  const p2 = engine.addManualIgdPatient('rs_tirta_utara', 'gawat');
+  engine.referPatientManual('rs_tirta_utara', p1.patientCode, 'rs_tirta_raya', { recordUndo: false });
+  engine.referPatientManual('rs_tirta_utara', p2.patientCode, 'rs_tirta_raya', { recordUndo: false });
+
+  assert.equal(dispatches.length, 1);
+  assert.equal(engine.hospitals.get('rs_tirta_utara').ambRequestQueue.size(), 1);
+
+  // Tambah 1 ambulans -> permintaan kedua langsung berangkat!
+  engine.setHospitalAmbulances('rs_tirta_utara', 2, { recordUndo: true, scopeKey: 'dinkes' });
+  assert.equal(engine.hospitals.get('rs_tirta_utara').ambulancesTotal, 2);
+  assert.equal(dispatches.length, 2);
+  assert.equal(engine.hospitals.get('rs_tirta_utara').ambRequestQueue.size(), 0);
+
+  // Undo mengembalikan kapasitas armada ke 1
+  engine.undoLastAction('dinkes');
+  assert.equal(engine.hospitals.get('rs_tirta_utara').ambulancesTotal, 1);
+});
