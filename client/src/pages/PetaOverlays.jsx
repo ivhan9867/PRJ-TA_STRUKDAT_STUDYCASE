@@ -125,18 +125,18 @@ export function PetaOverlays({
 
       {/* 2. Tombol Skenario (kanan atas, khusus Dinkes) */}
       {isDinkes && (
-        <div ref={scenarioRef} className="absolute right-4 top-4 z-30">
+        <div ref={scenarioRef} className="absolute right-3 top-3 z-30 sm:right-4 sm:top-4">
           <button
             type="button"
             onClick={() => setScenarioOpen((v) => !v)}
             style={{
-              height: '40px',
+              height: '38px',
               borderRadius: 'var(--radius-pill)',
               boxShadow: 'var(--shadow-chip)',
               border: '1px solid rgba(226, 232, 240, 0.9)',
               color: 'var(--text)',
             }}
-            className="surface-glass focus-ring inline-flex cursor-pointer items-center gap-2 px-4 text-[13px] font-semibold hover:bg-[var(--surface)]"
+            className="surface-glass focus-ring inline-flex cursor-pointer items-center gap-1.5 px-3 text-[12px] font-semibold hover:bg-[var(--surface)] sm:h-[40px] sm:gap-2 sm:px-4 sm:text-[13px]"
             aria-expanded={scenarioOpen}
           >
             <Siren size={16} strokeWidth={1.75} style={{ color: 'var(--accent)' }} />
@@ -147,12 +147,11 @@ export function PetaOverlays({
           {scenarioOpen && (
             <div
               style={{
-                width: '340px',
                 borderRadius: 'var(--radius-card)',
                 boxShadow: 'var(--shadow-float)',
                 border: '1px solid rgba(226, 232, 240, 0.9)',
               }}
-              className="surface-glass absolute right-0 top-[48px] max-h-[calc(100vh-140px)] space-y-4 overflow-y-auto p-5"
+              className="surface-glass absolute right-0 top-[46px] max-h-[calc(100dvh-160px)] w-[calc(100vw-24px)] max-w-[340px] space-y-4 overflow-y-auto p-4 sm:top-[48px] sm:p-5"
             >
               {/* Rujukan otomatis */}
               <div className="flex items-start justify-between gap-3">
@@ -478,8 +477,8 @@ export function PetaOverlays({
         </button>
       </div>
 
-      {/* 4. Kontrol waktu (tengah bawah, tampil mulai md agar tablet juga melihat jam) */}
-      <div className="absolute bottom-4 left-1/2 z-20 hidden -translate-x-1/2 md:block">
+      {/* 4. Kontrol waktu (kiri atas di Android/mobile; tengah bawah di desktop) */}
+      <div className="absolute left-3 top-3 z-20 md:bottom-4 md:left-1/2 md:top-auto md:-translate-x-1/2">
         <TimeControl
           paused={paused}
           speed={speed}
@@ -562,8 +561,8 @@ export function PetaOverlays({
         </div>
       )}
 
-      {/* 5. Kontrol Zoom: +, -, Lihat semua (kanan bawah) */}
-      <div className="absolute bottom-4 right-4 z-20 hidden flex-col items-end gap-2 lg:flex">
+      {/* 5. Kontrol Zoom: +, -, Lihat semua (kanan bawah, tampil juga di Android di atas bar ringkas) */}
+      <div className="absolute bottom-[74px] right-3 z-20 flex flex-col items-end gap-2 lg:bottom-4 lg:right-4">
         <div
           style={{
             borderRadius: 'var(--radius-inner)',

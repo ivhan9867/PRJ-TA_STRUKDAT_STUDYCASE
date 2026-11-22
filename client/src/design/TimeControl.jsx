@@ -37,7 +37,7 @@ export function TimeControl({
         boxShadow: 'var(--shadow-chip)',
         border: '1px solid rgba(226, 232, 240, 0.9)',
       }}
-      className="surface-glass inline-flex items-center gap-2 px-2.5 py-1.5"
+      className="surface-glass inline-flex items-center gap-1.5 px-2 py-1 sm:gap-2 sm:px-2.5 sm:py-1.5"
       title={disabledTitle}
     >
       <button
@@ -58,19 +58,19 @@ export function TimeControl({
               : 'var(--text)',
           transition: 'background-color var(--t-fast) var(--ease)',
         }}
-        className={`focus-ring inline-flex h-9 items-center gap-1.5 px-3.5 text-[13px] font-semibold ${
+        className={`focus-ring inline-flex h-8 items-center gap-1.5 px-2.5 text-[12px] font-semibold sm:h-9 sm:px-3.5 sm:text-[13px] ${
           canControl ? 'cursor-pointer hover:opacity-90' : 'cursor-not-allowed'
         }`}
       >
         {paused ? (
           <>
             <Play size={14} strokeWidth={2} fill="currentColor" />
-            <span>Jalan</span>
+            <span className="hidden sm:inline">Jalan</span>
           </>
         ) : (
           <>
             <Pause size={14} strokeWidth={2} fill="currentColor" />
-            <span>Jeda</span>
+            <span className="hidden sm:inline">Jeda</span>
           </>
         )}
       </button>
@@ -99,7 +99,7 @@ export function TimeControl({
                     : 'var(--text-muted)',
                 boxShadow: active ? '0 1px 3px rgba(15, 23, 42, 0.08)' : 'none',
               }}
-              className={`focus-ring tabular-nums h-8 min-w-[38px] px-2 text-[13px] font-semibold ${
+              className={`focus-ring tabular-nums h-7 min-w-[30px] px-1.5 text-[12px] font-semibold sm:h-8 sm:min-w-[38px] sm:px-2 sm:text-[13px] ${
                 canControl ? 'cursor-pointer' : 'cursor-not-allowed'
               }`}
             >
@@ -110,23 +110,23 @@ export function TimeControl({
       </div>
 
       <div
-        className="h-5 w-px"
+        className="h-4 w-px sm:h-5"
         style={{ backgroundColor: 'var(--border)' }}
         aria-hidden="true"
       />
 
       <span
         title={phaseLabel}
-        className="tabular-nums inline-flex items-center gap-1.5 px-2 text-[13px] font-semibold whitespace-nowrap"
+        className="tabular-nums inline-flex items-center gap-1 px-1 text-[12px] font-semibold whitespace-nowrap sm:gap-1.5 sm:px-2 sm:text-[13px]"
         style={{ color: 'var(--text)' }}
       >
-        <PhaseIcon size={15} strokeWidth={1.85} style={{ color: phaseColor }} aria-hidden="true" />
-        <span>{simTimeText}</span>
+        <PhaseIcon size={14} strokeWidth={1.85} style={{ color: phaseColor }} aria-hidden="true" />
+        <span>{simTimeText.replace('Hari ', 'H')}</span>
       </span>
 
       {onToggleAtmosphere && (
         <>
-          <div className="h-5 w-px" style={{ backgroundColor: 'var(--border)' }} aria-hidden="true" />
+          <div className="hidden h-5 w-px sm:block" style={{ backgroundColor: 'var(--border)' }} aria-hidden="true" />
           <button
             type="button"
             onClick={onToggleAtmosphere}
@@ -140,7 +140,7 @@ export function TimeControl({
               backgroundColor: dynamicAtmosphere ? 'var(--accent-soft)' : 'var(--surface-2)',
               color: dynamicAtmosphere ? 'var(--accent-ink)' : 'var(--text-muted)',
             }}
-            className="focus-ring h-8 cursor-pointer px-2.5 text-[12px] font-semibold whitespace-nowrap hover:opacity-90"
+            className="focus-ring hidden h-8 cursor-pointer px-2.5 text-[12px] font-semibold whitespace-nowrap hover:opacity-90 sm:inline-flex sm:items-center"
           >
             {dynamicAtmosphere ? phaseLabel.split(' ')[0] : 'Terang'}
           </button>

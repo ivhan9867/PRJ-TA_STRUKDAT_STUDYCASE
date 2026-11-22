@@ -57,6 +57,8 @@ export const MapCanvas = forwardRef(function MapCanvas(
   const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
   const [animating, setAnimating] = useState(false);
   const dragRef = useRef({ active: false, startX: 0, startY: 0, originX: 0, originY: 0, moved: false });
+  const pointersRef = useRef(new Map());
+  const pinchRef = useRef(null);
   const animTimerRef = useRef(null);
 
   const clampZoom = (z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
@@ -169,8 +171,30 @@ export const MapCanvas = forwardRef(function MapCanvas(
   }, [handleWheel]);
 
   const handlePointerDown = (e) => {
-    if (e.button !== 0) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
     setAnimating(false);
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    e.currentTarget.setPointerCapture(e.pointerId);
+
+    // Jika 2 jari menyentuh layar (pinch-to-zoom Android/touch)
+    if (pointersRef.current.size === 2) {
+      dragRef.current.active = false;
+      const pts = Array.from(pointersRef.current.values());
+      const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+      const rect = containerRef.current?.getBoundingClientRect();
+      const midX = (pts[0].x + pts[1].x) / 2 - (rect?.left || 0);
+      const midY = (pts[0].y + pts[1].y) / 2 - (rect?.top || 0);
+      pinchRef.current = {
+        startDist: Math.max(dist, 1),
+        startZoom: camera.zoom,
+        startX: camera.x,
+        startY: camera.y,
+        midX,
+        midY,
+      };
+      return;
+    }
+
     dragRef.current = {
       active: true,
       startX: e.clientX,
@@ -179,10 +203,28 @@ export const MapCanvas = forwardRef(function MapCanvas(
       originY: camera.y,
       moved: false,
     };
-    e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e) => {
+    if (pointersRef.current.has(e.pointerId)) {
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+
+    // Pinch-to-zoom 2 jari di layar sentuh Android
+    if (pointersRef.current.size === 2 && pinchRef.current) {
+      const pts = Array.from(pointersRef.current.values());
+      const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+      const p = pinchRef.current;
+      const nextZoom = clampZoom(p.startZoom * (dist / p.startDist));
+      const ratio = nextZoom / p.startZoom;
+      setCamera({
+        x: p.midX - (p.midX - p.startX) * ratio,
+        y: p.midY - (p.midY - p.startY) * ratio,
+        zoom: nextZoom,
+      });
+      return;
+    }
+
     const d = dragRef.current;
     if (!d.active) return;
     const dx = e.clientX - d.startX;
@@ -198,12 +240,16 @@ export const MapCanvas = forwardRef(function MapCanvas(
   };
 
   const handlePointerUp = (e) => {
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) {
+      pinchRef.current = null;
+    }
     const d = dragRef.current;
-    if (!d.active) return;
-    d.active = false;
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
     }
+    if (!d.active) return;
+    d.active = false;
     if (!d.moved && e.target === e.currentTarget) {
       onClearSelection?.();
     }

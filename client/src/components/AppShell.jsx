@@ -73,7 +73,7 @@ export function AppShell({
     .join('');
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden" style={{ backgroundColor: 'var(--surface-2)' }}>
+    <div className="flex h-[100dvh] w-screen flex-col overflow-hidden" style={{ backgroundColor: 'var(--surface-2)' }}>
       {/* Topbar 56 px */}
       <header
         style={{
@@ -81,10 +81,10 @@ export function AppShell({
           backgroundColor: 'var(--surface)',
           borderBottom: '1px solid var(--border)',
         }}
-        className="z-30 flex shrink-0 items-center justify-between gap-4 px-4"
+        className="z-30 flex shrink-0 items-center justify-between gap-2 px-3 sm:gap-4 sm:px-4"
       >
         {/* 1. Logo dan nama */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
           <div
             className="flex h-8 w-8 items-center justify-center rounded-[10px]"
             style={{ backgroundColor: 'var(--accent)' }}
@@ -98,7 +98,9 @@ export function AppShell({
             </svg>
           </div>
           <span
-            className="font-display text-[17px] leading-none tracking-[-0.01em]"
+            className={`font-display text-[17px] leading-none tracking-[-0.01em] ${
+              activePage === 'peta' ? 'hidden sm:inline' : 'inline'
+            }`}
             style={{ color: 'var(--text)' }}
           >
             {APP_NAME}
@@ -244,7 +246,7 @@ export function AppShell({
         </div>
       </header>
 
-      {/* Area isi: Sidebar 72 px + konten utama */}
+      {/* Area isi: Sidebar 72 px di desktop + konten utama */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <nav
           aria-label="Navigasi utama"
@@ -253,7 +255,7 @@ export function AppShell({
             backgroundColor: 'var(--surface)',
             borderRight: '1px solid var(--border)',
           }}
-          className="z-20 flex shrink-0 flex-col items-center gap-2 py-3"
+          className="z-20 hidden shrink-0 flex-col items-center gap-2 py-3 md:flex"
         >
           {menuItems.map((item) => (
             <SidebarButton
@@ -268,6 +270,37 @@ export function AppShell({
 
         <main className="relative min-w-0 flex-1 overflow-hidden">{children}</main>
       </div>
+
+      {/* Navigasi bawah khusus layar mobile / Android (< md) */}
+      <nav
+        aria-label="Navigasi mobile"
+        style={{
+          backgroundColor: 'var(--surface)',
+          borderTop: '1px solid var(--border)',
+        }}
+        className="z-30 flex shrink-0 items-center justify-around px-1 py-1.5 md:hidden"
+      >
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          const active = activePage === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onNavigate?.(item.id)}
+              style={{
+                color: active ? 'var(--accent)' : 'var(--text-muted)',
+                backgroundColor: active ? 'var(--accent-soft)' : 'transparent',
+                borderRadius: '12px',
+              }}
+              className="focus-ring flex min-w-[64px] cursor-pointer flex-col items-center justify-center gap-0.5 px-3 py-1.5"
+            >
+              <Icon size={18} strokeWidth={active ? 2.1 : 1.75} />
+              <span className="text-[11px] font-semibold leading-tight">{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }

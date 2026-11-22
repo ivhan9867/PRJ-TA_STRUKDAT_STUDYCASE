@@ -1,5 +1,15 @@
-import { useState } from 'react';
-import { ArrowLeft, Ambulance, Stethoscope, SearchX, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  ArrowLeft,
+  Ambulance,
+  Stethoscope,
+  SearchX,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from 'lucide-react';
 import {
   Card,
   StatusBadge,
@@ -51,6 +61,17 @@ export function PetaLeftCard({
   const [showInpatients, setShowInpatients] = useState(false);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
   const [registerUnit, setRegisterUnit] = useState('poli');
+  // Di layar HP/Android (<1024px) mulai dalam keadaan ringkas agar peta langsung lega; di desktop mulai terbuka
+  const [collapsed, setCollapsed] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 1024 : false
+  );
+
+  // Otomatis buka panel ketika pengguna mengetuk gedung RS di peta
+  useEffect(() => {
+    if (selectedHospital) {
+      setCollapsed(false);
+    }
+  }, [selectedHospital?.id]);
 
   const filteredHospitals = hospitals.filter((rs) => {
     const matchCity = cityFilter === 'all' || rs.city === cityFilter;
@@ -65,10 +86,76 @@ export function PetaLeftCard({
     onSelectHospital?.(id);
   };
 
+  // Tampilan ringkas (sembunyi) — pil mengambang di kiri atas (desktop) & bar tipis di bawah (Android/mobile)
+  if (collapsed) {
+    return (
+      <>
+        {/* Desktop: tombol pil di kiri atas */}
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          style={{
+            height: '40px',
+            borderRadius: 'var(--radius-pill)',
+            boxShadow: 'var(--shadow-chip)',
+            border: '1px solid rgba(226, 232, 240, 0.9)',
+            color: 'var(--text)',
+          }}
+          className="surface-glass focus-ring absolute left-4 top-4 z-20 hidden cursor-pointer items-center gap-2 px-3.5 text-[13px] font-semibold hover:bg-[var(--surface)] lg:inline-flex"
+        >
+          <PanelLeftOpen size={16} strokeWidth={1.8} style={{ color: 'var(--accent)' }} />
+          <span>Panel RS</span>
+          <span
+            style={{
+              backgroundColor: 'var(--accent-soft)',
+              color: 'var(--accent-ink)',
+              borderRadius: 'var(--radius-pill)',
+            }}
+            className="tabular-nums px-2 py-0.5 text-[11px] font-semibold"
+          >
+            {kpi.bedPct}% · {hospitals.length} RS
+          </span>
+        </button>
+
+        {/* Mobile / Android: bar ringkas di bawah agar peta 90% layar tetap bebas */}
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          style={{
+            borderRadius: 'var(--radius-card)',
+            boxShadow: 'var(--shadow-float)',
+            border: '1px solid rgba(226, 232, 240, 0.9)',
+          }}
+          className="surface-glass focus-ring absolute inset-x-3 bottom-3 z-20 flex cursor-pointer items-center justify-between gap-2 px-4 py-2.5 text-left lg:hidden"
+        >
+          <div className="min-w-0">
+            <div className="truncate text-[13px] font-semibold" style={{ color: 'var(--text)' }}>
+              Halo, {user.shortName || user.displayName}
+            </div>
+            <div className="type-caption tabular-nums truncate">
+              IGD {kpi.totalIgdQueue} · Tempat tidur {kpi.bedPct}% · Dirujuk {kpi.referralsToday}
+            </div>
+          </div>
+          <span
+            style={{
+              backgroundColor: 'var(--accent-soft)',
+              color: 'var(--accent)',
+              borderRadius: 'var(--radius-pill)',
+            }}
+            className="inline-flex shrink-0 items-center gap-1 px-2.5 py-1 text-[12px] font-semibold"
+          >
+            <span>Buka</span>
+            <ChevronUp size={15} strokeWidth={2} />
+          </span>
+        </button>
+      </>
+    );
+  }
+
   return (
     <aside
       aria-label="Panel ringkasan dan detail rumah sakit"
-      className="pointer-events-none absolute inset-x-4 bottom-4 z-20 flex max-h-[45vh] flex-col lg:inset-x-auto lg:bottom-auto lg:left-4 lg:top-4 lg:max-h-[calc(100%-32px)] lg:w-[360px]"
+      className="pointer-events-none absolute inset-x-3 bottom-3 z-20 flex max-h-[56dvh] flex-col lg:inset-x-auto lg:bottom-auto lg:left-4 lg:top-4 lg:max-h-[calc(100%-32px)] lg:w-[360px]"
     >
       <Card
         glass
@@ -82,14 +169,44 @@ export function PetaLeftCard({
           transition: 'all var(--t-base) var(--ease)',
         }}
       >
-        <div className="overflow-y-auto p-5">
+        {/* Pegangan tarik tipis di mobile untuk menutup cepat */}
+        <button
+          type="button"
+          onClick={() => setCollapsed(true)}
+          aria-label="Sembunyikan panel"
+          className="flex w-full shrink-0 cursor-pointer items-center justify-center pt-2 pb-1 lg:hidden"
+        >
+          <span className="h-1 w-10 rounded-full" style={{ backgroundColor: 'var(--border)' }} />
+        </button>
+
+        <div className="overflow-y-auto px-4 pb-4 pt-2 lg:p-5">
           {!selectedHospital ? (
             /* ================= KEADAAN RINGKASAN ================= */
             <div>
-              <h1 className="type-h1" style={{ color: 'var(--text)' }}>
-                Halo, {user.shortName || user.displayName}
-              </h1>
-              <p className="type-caption mt-0.5">Berikut kondisi dua kota.</p>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h1 className="type-h1" style={{ color: 'var(--text)' }}>
+                    Halo, {user.shortName || user.displayName}
+                  </h1>
+                  <p className="type-caption mt-0.5">Berikut kondisi dua kota.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCollapsed(true)}
+                  title="Sembunyikan panel"
+                  aria-label="Sembunyikan panel"
+                  style={{
+                    borderRadius: 'var(--radius-pill)',
+                    backgroundColor: 'var(--surface-2)',
+                    color: 'var(--text-muted)',
+                  }}
+                  className="focus-ring inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 px-2.5 text-[12px] font-semibold hover:bg-[var(--border)]"
+                >
+                  <PanelLeftClose size={15} strokeWidth={1.8} className="hidden lg:inline" />
+                  <ChevronDown size={15} strokeWidth={2} className="inline lg:hidden" />
+                  <span>Tutup</span>
+                </button>
+              </div>
 
               {/* 3 blok angka dengan transisi hitung 400 ms */}
               <div className="mt-4 grid grid-cols-3 gap-2.5">
@@ -178,15 +295,33 @@ export function PetaLeftCard({
           ) : (
             /* ================= KEADAAN DETAIL RS ================= */
             <div>
-              <button
-                type="button"
-                onClick={onBackToSummary}
-                style={{ color: 'var(--text-muted)' }}
-                className="focus-ring -ml-1 mb-2 inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-1 py-1 text-[13px] font-semibold hover:text-[var(--text)]"
-              >
-                <ArrowLeft size={16} strokeWidth={1.75} />
-                <span>Kembali</span>
-              </button>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={onBackToSummary}
+                  style={{ color: 'var(--text-muted)' }}
+                  className="focus-ring -ml-1 inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-1 py-1 text-[13px] font-semibold hover:text-[var(--text)]"
+                >
+                  <ArrowLeft size={16} strokeWidth={1.75} />
+                  <span>Kembali</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCollapsed(true)}
+                  title="Sembunyikan panel"
+                  aria-label="Sembunyikan panel"
+                  style={{
+                    borderRadius: 'var(--radius-pill)',
+                    backgroundColor: 'var(--surface-2)',
+                    color: 'var(--text-muted)',
+                  }}
+                  className="focus-ring inline-flex h-7 shrink-0 cursor-pointer items-center gap-1 px-2.5 text-[12px] font-semibold hover:bg-[var(--border)]"
+                >
+                  <PanelLeftClose size={14} strokeWidth={1.8} className="hidden lg:inline" />
+                  <ChevronDown size={14} strokeWidth={2} className="inline lg:hidden" />
+                  <span>Tutup</span>
+                </button>
+              </div>
 
               <h1 className="type-h1" style={{ color: 'var(--text)' }}>
                 {selectedHospital.name}
