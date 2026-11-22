@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapCanvas } from '../map/MapCanvas.jsx';
 import { PetaLeftCard } from './PetaLeftCard.jsx';
 import { PetaOverlays } from './PetaOverlays.jsx';
@@ -96,23 +96,31 @@ export function PetaPage({ user, searchQuery, sim, onNavigate, onManageHospital 
     return null;
   }, [world.hospitals, searchQuery, statusHighlight]);
 
-  const handleSelectHospital = (id) => {
-    setSelectedHospitalId(id);
-    clearPatientDetail();
-    requestHospitalDetail(id);
-    const target = world.hospitals.find((h) => h.id === id);
-    if (target) {
-      mapRef.current?.flyTo(target.x, target.y, 1.55);
-    }
-  };
+  const hospitalsRef = useRef(world.hospitals);
+  hospitalsRef.current = world.hospitals;
+  const bridgesRef = useRef(world.bridges);
+  bridgesRef.current = world.bridges;
 
-  const handleBackToSummary = () => {
+  const handleSelectHospital = useCallback(
+    (id) => {
+      setSelectedHospitalId(id);
+      clearPatientDetail();
+      requestHospitalDetail(id);
+      const target = hospitalsRef.current.find((h) => h.id === id);
+      if (target) {
+        mapRef.current?.flyTo(target.x, target.y, 1.55);
+      }
+    },
+    [clearPatientDetail, requestHospitalDetail]
+  );
+
+  const handleBackToSummary = useCallback(() => {
     setSelectedHospitalId(null);
     clearPatientDetail();
     mapRef.current?.resetView();
-  };
+  }, [clearPatientDetail]);
 
-  const handleChangeCityFilter = (city) => {
+  const handleChangeCityFilter = useCallback((city) => {
     setCityFilter(city);
     if (city === 'all') {
       mapRef.current?.resetView();
@@ -120,21 +128,24 @@ export function PetaPage({ user, searchQuery, sim, onNavigate, onManageHospital 
       const { x, y, zoom } = CITY_FOCUS[city];
       mapRef.current?.flyTo(x, y, zoom);
     }
-  };
+  }, []);
 
-  const handleClickStatusChip = (status) => {
+  const handleClickStatusChip = useCallback((status) => {
     window.clearTimeout(statusTimerRef.current);
     setStatusHighlight(status);
     statusTimerRef.current = window.setTimeout(() => {
       setStatusHighlight(null);
     }, 2000);
-  };
+  }, []);
 
-  const handleToggleBridge = (edgeId) => {
-    const current = world.bridges.find((b) => b.id === edgeId);
-    if (!current) return;
-    setBridge(edgeId, !current.closed);
-  };
+  const handleToggleBridge = useCallback(
+    (edgeId) => {
+      const current = bridgesRef.current.find((b) => b.id === edgeId);
+      if (!current) return;
+      setBridge(edgeId, !current.closed);
+    },
+    [setBridge]
+  );
 
   return (
     <div className="relative h-full w-full overflow-hidden">

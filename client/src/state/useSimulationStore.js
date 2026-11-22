@@ -12,6 +12,25 @@ const MAX_WALKINS = 150;
 const MAX_TOASTS = 3;
 const TOAST_TTL_MS = 6000;
 
+function mergeEdgesIfBridgeChanged(prevEdges, bridges) {
+  if (!bridges || bridges.length === 0) return prevEdges;
+  let changed = false;
+  for (let i = 0; i < prevEdges.length; i++) {
+    const e = prevEdges[i];
+    if (!e.bridge) continue;
+    const b = bridges.find((item) => item.id === e.id);
+    if (b && Boolean(e.closed) !== Boolean(b.closed)) {
+      changed = true;
+      break;
+    }
+  }
+  if (!changed) return prevEdges;
+  const bridgeMap = new Map(bridges.map((b) => [b.id, b.closed]));
+  return prevEdges.map((e) =>
+    e.bridge && bridgeMap.has(e.id) ? { ...e, closed: bridgeMap.get(e.id) } : e
+  );
+}
+
 function createFallbackWorld() {
   const nodeMap = new Map(worldSeed.nodes.map((n) => [n.id, n]));
   return {
@@ -121,10 +140,7 @@ export function useSimulationStore(token, { onProfileUpdated } = {}) {
       const unsub = subscribeLocalEngine((event, payload) => {
         if (event === 'world:tick') {
           setWorld((prev) => {
-            const bridgeMap = new Map((payload.bridges || []).map((b) => [b.id, b.closed]));
-            const nextEdges = prev.edges.map((e) =>
-              e.bridge && bridgeMap.has(e.id) ? { ...e, closed: bridgeMap.get(e.id) } : e
-            );
+            const nextEdges = mergeEdgesIfBridgeChanged(prev.edges, payload.bridges);
             return {
               ...prev,
               simTime: payload.simTime,
@@ -200,10 +216,7 @@ export function useSimulationStore(token, { onProfileUpdated } = {}) {
 
     socket.on('world:tick', (tick) => {
       setWorld((prev) => {
-        const bridgeMap = new Map((tick.bridges || []).map((b) => [b.id, b.closed]));
-        const nextEdges = prev.edges.map((e) =>
-          e.bridge && bridgeMap.has(e.id) ? { ...e, closed: bridgeMap.get(e.id) } : e
-        );
+        const nextEdges = mergeEdgesIfBridgeChanged(prev.edges, tick.bridges);
         return {
           ...prev,
           simTime: tick.simTime,

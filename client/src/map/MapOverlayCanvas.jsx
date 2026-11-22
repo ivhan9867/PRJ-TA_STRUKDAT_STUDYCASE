@@ -50,35 +50,45 @@ function easeDepartureArrival(t) {
   return clamped;
 }
 
-function samplePoints(points, progress) {
+/**
+ * Pra-hitung panjang & sudut tiap segmen sekali per entitas agar loop 60 fps bebas alokasi array & Math.hypot.
+ */
+function buildPathMeta(points) {
   if (!points || points.length === 0) return null;
   if (points.length === 1) {
-    return { x: points[0].x, y: points[0].y, angle: 0 };
+    return { points, segs: [], totalLen: 0 };
   }
-
   let totalLen = 0;
   const segs = [];
   for (let i = 0; i < points.length - 1; i++) {
     const a = points[i];
     const b = points[i + 1];
     const len = Math.hypot(b.x - a.x, b.y - a.y);
-    segs.push({ a, b, len });
+    const angle = Math.atan2(b.y - a.y, b.x - a.x);
+    segs.push({ a, b, len, angle });
     totalLen += len;
   }
-  if (segs.length === 0 || totalLen === 0) {
-    return { x: points[0].x, y: points[0].y, angle: 0 };
+  return { points, segs, totalLen };
+}
+
+function samplePathMeta(meta, progress) {
+  if (!meta || meta.points.length === 0) return null;
+  if (meta.segs.length === 0 || meta.totalLen === 0) {
+    return { x: meta.points[0].x, y: meta.points[0].y, angle: 0 };
   }
 
-  const targetDist = Math.min(Math.max(progress, 0), 1) * totalLen;
+  const targetDist = Math.min(Math.max(progress, 0), 1) * meta.totalLen;
   let accum = 0;
-
-  for (const seg of segs) {
-    if (accum + seg.len >= targetDist || seg === segs[segs.length - 1]) {
+  const segs = meta.segs;
+  for (let i = 0; i < segs.length; i++) {
+    const seg = segs[i];
+    if (accum + seg.len >= targetDist || i === segs.length - 1) {
       const localT = seg.len > 0 ? (targetDist - accum) / seg.len : 0;
-      const x = seg.a.x + (seg.b.x - seg.a.x) * localT;
-      const y = seg.a.y + (seg.b.y - seg.a.y) * localT;
-      const angle = Math.atan2(seg.b.y - seg.a.y, seg.b.x - seg.a.x);
-      return { x, y, angle };
+      return {
+        x: seg.a.x + (seg.b.x - seg.a.x) * localT,
+        y: seg.a.y + (seg.b.y - seg.a.y) * localT,
+        angle: seg.angle,
+      };
     }
     accum += seg.len;
   }
@@ -247,18 +257,19 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
         ctx.restore();
       }
 
-      // 0b. Lampu jendela rumah warga menyala hangat saat malam hari
+      // 0b. Lampu jendela rumah warga menyala hangat saat malam hari (1 batch fill call untuk seluruh rumah)
       const nightLevel = nightRef.current;
       if (nightLevel > 0.12) {
         ctx.save();
+        ctx.fillStyle = `rgba(254, 240, 138, ${(0.72 * nightLevel).toFixed(2)})`;
+        ctx.beginPath();
         for (let i = 0; i < houses.length; i++) {
           if (i % 4 === 0) continue;
           const h = houses[i];
-          ctx.fillStyle = `rgba(254, 240, 138, ${(0.72 * nightLevel).toFixed(2)})`;
-          ctx.beginPath();
+          ctx.moveTo(h.x + 2.3, h.y + 1);
           ctx.arc(h.x, h.y + 1, 2.3, 0, Math.PI * 2);
-          ctx.fill();
         }
+        ctx.fill();
         ctx.restore();
       }
 
@@ -412,8 +423,10 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
           }
           if ((amb.phase !== 'dispatch' && amb.phase !== 'pickup') || !amb.path || amb.path.length < 2) continue;
 
-          if (!amb._coords) {
-            amb._coords = buildCoordsFromPath(amb.path, nodeMap);
+          if (!amb._pathMeta) {
+            const coords = buildCoordsFromPath(amb.path, nodeMap);
+            amb._coords = coords;
+            amb._pathMeta = buildPathMeta(coords);
           }
 
           const isPickup = amb.phase === 'pickup';
@@ -436,7 +449,7 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
           ctx.stroke();
           ctx.restore();
 
-          const mid = samplePoints(amb._coords, 0.5);
+          const mid = samplePathMeta(amb._pathMeta, 0.5);
           if (mid && amb.travelMin) {
             routeLabels.push({
               x: mid.x,
@@ -496,12 +509,13 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
             continue;
           }
 
-          if (!wk._coords) {
-            wk._coords = buildCoordsFromPath(wk.path, nodeMap, wk.originCoord);
+          if (!wk._pathMeta) {
+            const coords = buildCoordsFromPath(wk.path, nodeMap, wk.originCoord);
+            wk._pathMeta = buildPathMeta(coords);
             wk._seedOffset = (idx * 1.37) % 6.28;
           }
 
-          const pos = samplePoints(wk._coords, progress);
+          const pos = samplePathMeta(wk._pathMeta, progress);
           if (!pos) continue;
 
           const fadeIn = Math.min(1, progress / 0.08);
@@ -529,12 +543,14 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
           const rawProgress = (animNow - (amb._startAnimMs ?? animNow)) / Math.max(amb.durationMs, 1);
           if (rawProgress >= 1) continue;
 
-          if (!amb._coords) {
-            amb._coords = buildCoordsFromPath(amb.path, nodeMap);
+          if (!amb._pathMeta) {
+            const coords = buildCoordsFromPath(amb.path, nodeMap);
+            amb._coords = coords;
+            amb._pathMeta = buildPathMeta(coords);
           }
 
           const easedProgress = easeDepartureArrival(rawProgress);
-          const pos = samplePoints(amb._coords, easedProgress);
+          const pos = samplePathMeta(amb._pathMeta, easedProgress);
           if (!pos) continue;
 
           // Rotasi belok halus di persimpangan
@@ -550,7 +566,7 @@ export const MapOverlayCanvas = memo(function MapOverlayCanvas({
 
           // Jejak cahaya di belakang ambulans saat menjemput / mengantar
           if (isActiveEmergency && easedProgress > 0.03) {
-            const trailPos = samplePoints(amb._coords, Math.max(0, easedProgress - 0.04));
+            const trailPos = samplePathMeta(amb._pathMeta, Math.max(0, easedProgress - 0.04));
             if (trailPos) {
               ctx.save();
               ctx.strokeStyle = isPickup

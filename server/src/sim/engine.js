@@ -205,27 +205,21 @@ export class SimulationEngine {
         });
       }
 
-      // Tambahkan RS & 4 unit ke RegionTree
+      // Tambahkan RS & 4 unit ke RegionTree (simpan referensi daun agar _syncTreeAndStatuses berjalan O(1))
       this.regionTree.addChild(
         cfg.city,
         new TreeNode({ id: cfg.id, name: cfg.name, level: 'rs' })
       );
-      this.regionTree.addChild(
-        cfg.id,
-        new TreeNode({ id: `${cfg.id}:igd`, name: 'IGD', level: 'unit', data: { queue: 0, used: 0, total: cfg.igdDoctors } })
-      );
-      this.regionTree.addChild(
-        cfg.id,
-        new TreeNode({ id: `${cfg.id}:poli`, name: 'Poli', level: 'unit', data: { queue: 0, used: 0, total: cfg.poliDoctors } })
-      );
-      this.regionTree.addChild(
-        cfg.id,
-        new TreeNode({ id: `${cfg.id}:rawat_inap`, name: 'Rawat inap', level: 'unit', data: { used: 0, total: cfg.bedsInap } })
-      );
-      this.regionTree.addChild(
-        cfg.id,
-        new TreeNode({ id: `${cfg.id}:icu`, name: 'ICU', level: 'unit', data: { used: 0, total: cfg.bedsIcu } })
-      );
+      const igdNode = new TreeNode({ id: `${cfg.id}:igd`, name: 'IGD', level: 'unit', data: { queue: 0, used: 0, total: cfg.igdDoctors } });
+      const poliNode = new TreeNode({ id: `${cfg.id}:poli`, name: 'Poli', level: 'unit', data: { queue: 0, used: 0, total: cfg.poliDoctors } });
+      const inapNode = new TreeNode({ id: `${cfg.id}:rawat_inap`, name: 'Rawat inap', level: 'unit', data: { used: 0, total: cfg.bedsInap } });
+      const icuNode = new TreeNode({ id: `${cfg.id}:icu`, name: 'ICU', level: 'unit', data: { used: 0, total: cfg.bedsIcu } });
+
+      this.regionTree.addChild(cfg.id, igdNode);
+      this.regionTree.addChild(cfg.id, poliNode);
+      this.regionTree.addChild(cfg.id, inapNode);
+      this.regionTree.addChild(cfg.id, icuNode);
+      rsState.treeNodes = { igd: igdNode, poli: poliNode, inap: inapNode, icu: icuNode };
 
       this.hospitals.set(cfg.id, rsState);
     }
@@ -1173,11 +1167,8 @@ export class SimulationEngine {
       }
       rs.lastStatus = rs.status;
 
-      // Perbarui daun RegionTree
-      const igdNode = this.regionTree.find(`${rs.id}:igd`);
-      const poliNode = this.regionTree.find(`${rs.id}:poli`);
-      const inapNode = this.regionTree.find(`${rs.id}:rawat_inap`);
-      const icuNode = this.regionTree.find(`${rs.id}:icu`);
+      // Perbarui daun RegionTree secara O(1) lewat referensi yang sudah di-cache
+      const { igd: igdNode, poli: poliNode, inap: inapNode, icu: icuNode } = rs.treeNodes || {};
 
       if (igdNode) igdNode.data = { queue: rs.igdQueue.size(), used: rs.activeIgd.size(), total: rs.igdDoctors };
       if (poliNode) poliNode.data = { queue: rs.poliQueue.size(), used: rs.activePoli.size(), total: rs.poliDoctors };
